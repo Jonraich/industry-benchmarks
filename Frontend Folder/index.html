@@ -85,6 +85,21 @@
   .glance-stat .value { font-size: 22px; font-weight: 700; }
   .glance-stat .label { font-size: 12px; color: var(--sub); margin-top: 2px; }
 
+  .metric-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 18px; }
+  .metric-grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metric-grid .glance-stat {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 13px 15px 12px;
+  }
+  .metric-grid .glance-stat .value { font-size: 19px; line-height: 1.25; word-break: break-word; cursor: default; }
+  .metric-grid .glance-stat .label { margin-top: 5px; line-height: 1.4; }
+  .highlight-box .metric-grid .glance-stat { background: #ffffff; border-color: rgba(15,122,99,0.25); }
+  @media (max-width: 640px) {
+    .metric-grid, .metric-grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 420px) {
+    .metric-grid, .metric-grid.cols-2 { grid-template-columns: 1fr; }
+  }
+
   .section-label {
     font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
     color: var(--sub); margin: 20px 0 10px;
@@ -1315,6 +1330,25 @@ function num(v) {
   if (v === null || v === undefined) return "—";
   return Number(v).toLocaleString();
 }
+function moneyCompact(v) {
+  if (v === null || v === undefined) return "—";
+  const n = Number(v);
+  const abs = Math.abs(n);
+  const sign = n < 0 ? "-" : "";
+  if (abs >= 1e9) return sign + "$" + (abs / 1e9).toFixed(abs >= 1e11 ? 0 : 1) + "B";
+  if (abs >= 1e6) return sign + "$" + (abs / 1e6).toFixed(abs >= 1e8 ? 0 : 1) + "M";
+  if (abs >= 1e3) return sign + "$" + (abs / 1e3).toFixed(abs >= 1e5 ? 0 : 1) + "K";
+  return money(v);
+}
+function numCompact(v) {
+  if (v === null || v === undefined) return "—";
+  const n = Number(v);
+  const abs = Math.abs(n);
+  if (abs >= 1e9) return (n / 1e9).toFixed(1) + "B";
+  if (abs >= 1e6) return (n / 1e6).toFixed(1) + "M";
+  if (abs >= 1e3) return (n / 1e3).toFixed(1) + "K";
+  return num(v);
+}
 function pctOfRevenue(v, revenue) {
   return pct(revenue ? v / revenue : 0);
 }
@@ -1364,6 +1398,7 @@ function renderReport(data) {
   const root = document.getElementById("reportRoot");
   const g = data.industry_at_a_glance;
   const is = data.income_statement_latest;
+  const ns = data.national_income_statement_latest;
   const bs = data.balance_sheet;
   const r = data.financial_ratios;
 
@@ -1375,20 +1410,22 @@ function renderReport(data) {
 
       <div class="highlight-box">
         <div class="section-label">Average per firm</div>
-        <div class="glance-grid">
-          <div class="glance-stat"><div class="value">${money(g.average_revenue_per_firm)}</div><div class="label">Est. average revenue / firm, ${data.geography.state_name} (${data.data_sources.cbp_year})</div></div>
-          <div class="glance-stat"><div class="value">${g.national_average_revenue_per_firm ? money(g.national_average_revenue_per_firm) : "—"}</div><div class="label">National average revenue / firm</div></div>
+        <div class="glance-grid metric-grid cols-2">
+          <div class="glance-stat"><div class="value" title="${money(g.average_revenue_per_firm)}">${moneyCompact(g.average_revenue_per_firm)}</div><div class="label">Est. average revenue / firm, ${data.geography.state_name} (${data.data_sources.cbp_year})</div></div>
+          <div class="glance-stat"><div class="value" title="${g.national_average_revenue_per_firm ? money(g.national_average_revenue_per_firm) : ""}">${g.national_average_revenue_per_firm ? moneyCompact(g.national_average_revenue_per_firm) : "—"}</div><div class="label">National average revenue / firm</div></div>
+          <div class="glance-stat"><div class="value" title="${is && is.sde !== undefined ? money(is.sde) : ""}">${is && is.sde !== undefined ? moneyCompact(is.sde) : "—"}</div><div class="label">Est. average SDE / firm, ${data.geography.state_name} <span class="source-tag modeled" style="margin-left:4px;">Modeled</span></div></div>
+          <div class="glance-stat"><div class="value" title="${ns && ns.sde !== undefined ? money(ns.sde) : ""}">${ns && ns.sde !== undefined ? moneyCompact(ns.sde) : "—"}</div><div class="label">National average SDE / firm <span class="source-tag modeled" style="margin-left:4px;">Modeled</span></div></div>
         </div>
       </div>
 
       <div class="section-label">Industry totals</div>
-      <div class="glance-grid">
-        <div class="glance-stat"><div class="value">${num(g.total_firms)}</div><div class="label">Firms (2022 Economic Census)</div></div>
-        <div class="glance-stat"><div class="value">${money(g.total_revenue)}</div><div class="label">Total industry revenue</div></div>
-        <div class="glance-stat"><div class="value">${num(g.total_employment)}</div><div class="label">Total employment</div></div>
-        <div class="glance-stat"><div class="value">${money(g.total_payroll)}</div><div class="label">Total annual payroll</div></div>
-        <div class="glance-stat"><div class="value">${money(g.total_sde)}</div><div class="label">Total SDE, all firms <span class="source-tag modeled" style="margin-left:4px;">Modeled</span></div></div>
-        <div class="glance-stat"><div class="value">${money(g.total_net_income)}</div><div class="label">Total net income, all firms <span class="source-tag modeled" style="margin-left:4px;">Modeled</span></div></div>
+      <div class="glance-grid metric-grid">
+        <div class="glance-stat"><div class="value" title="${num(g.total_firms)}">${numCompact(g.total_firms)}</div><div class="label">Firms (2022 Economic Census)</div></div>
+        <div class="glance-stat"><div class="value" title="${money(g.total_revenue)}">${moneyCompact(g.total_revenue)}</div><div class="label">Total industry revenue</div></div>
+        <div class="glance-stat"><div class="value" title="${num(g.total_employment)}">${numCompact(g.total_employment)}</div><div class="label">Total employment</div></div>
+        <div class="glance-stat"><div class="value" title="${money(g.total_payroll)}">${moneyCompact(g.total_payroll)}</div><div class="label">Total annual payroll</div></div>
+        <div class="glance-stat"><div class="value" title="${money(g.total_sde)}">${moneyCompact(g.total_sde)}</div><div class="label">Total SDE, all firms <span class="source-tag modeled" style="margin-left:4px;">Modeled</span></div></div>
+        <div class="glance-stat"><div class="value" title="${money(g.total_net_income)}">${moneyCompact(g.total_net_income)}</div><div class="label">Total net income, all firms <span class="source-tag modeled" style="margin-left:4px;">Modeled</span></div></div>
       </div>
       <h3 style="font-size:13px; margin:20px 0 8px;">Firms Distribution by Sales Class <span class="source-tag modeled">Modeled</span></h3>
       <p class="caption">Census doesn't publish firm counts by revenue size class at this level of detail, so this splits the real total-firm count using a general small-business size distribution rather than an industry-specific one.</p>
