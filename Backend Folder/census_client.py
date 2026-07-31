@@ -43,8 +43,16 @@ def _get_key(api_key: str = None) -> str:
 
 def _request(url: str, params: dict):
     resp = requests.get(url, params=params, timeout=20)
+    if resp.status_code == 204:
+        # Census returns "204 No Content" (rather than a 200 with an empty
+        # array) for some NAICS + geography combinations where the data is
+        # suppressed or simply doesn't exist at that granularity. Treat this
+        # the same as "no rows found" rather than raising an error.
+        return []
     if resp.status_code != 200:
         raise CensusAPIError(f"Census API error {resp.status_code}: {resp.text[:300]}")
+    if not resp.text.strip():
+        return []
     data = resp.json()
     header, *rows = data
     return [dict(zip(header, row)) for row in rows]
