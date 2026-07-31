@@ -2,6 +2,7 @@
 from datetime import datetime
 
 import census_client
+import industry_trends
 from naics_sectors import get_profile
 from states import STATE_NAMES
 import financial_model as fm
@@ -111,4 +112,5 @@ def build_report(naics_code: str, state_abbr: str, api_key: str = None) -> dict:
         "financial_ratios": ratios,
         "size_class_estimates": size_classes,
         "implied_annual_growth_pct": round(implied_growth * 100, 2),
+        "industry_trends": industry_trends.get_trend(naics_code),
     }
