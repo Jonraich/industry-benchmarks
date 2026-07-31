@@ -201,4 +201,90 @@ def build_history(latest_revenue: float, implied_annual_growth: float, profile: 
     return income_statement_history, balance_sheet_history, ratios_history
 
 
-# Shared revenue multipliers for the <$1M /
+# Shared revenue multipliers for the <$1M / $1M-$5M / $5M-$25M size-class
+# breakdown shown in typical benchmark reports. Census's size-class data
+# (SUSB) is bucketed by EMPLOYEE count, not revenue, so this maps the
+# industry's typical revenue distribution using modeled multipliers around
+# the state average. Modeled -- used for both the current-year table and
+# the 5-year size-class history below, so both stay internally consistent.
+SIZE_CLASS_REVENUE_MULTIPLIERS = {
+    "<$1M": lambda avg: min(avg * 0.35, 900_000),
+    "$1M - $5M": lambda avg: max(avg * 0.95, 1_200_000),
+    "$5M - $25M": lambda avg: max(avg * 4.2, 6_000_000),
+}
+
+# Modeled share of firms falling into each size class, used only to turn a
+# real total-firm count into an estimated distribution (Census does not
+# publish firm counts by REVENUE size class at the NAICS+state level -- SUSB
+# breaks firms out by employee count instead). This is a general small-
+# business distribution assumption, not sector-specific, and is labeled
+# "Modeled" wherever it's shown.
+SIZE_CLASS_FIRM_SHARE = {
+    "<$1M": 0.60,
+    "$1M - $5M": 0.32,
+    "$5M - $25M": 0.08,
+}
+
+
+def build_size_class_estimates(average_revenue: float, profile: dict):
+    return {
+        label: build_income_statement(fn(average_revenue), profile)
+        for label, fn in SIZE_CLASS_REVENUE_MULTIPLIERS.items()
+    }
+
+
+def build_size_class_history(average_revenue: float, profile: dict, implied_annual_growth: float,
+                              years: int = HISTORY_YEARS, end_year: int = 2024):
+    """5-year modeled income-statement history for each size class, using the
+    same implied growth rate as the overall state trend so the size-class
+    lines and the state-level line stay consistent with each other."""
+    result = {}
+    for label, fn in SIZE_CLASS_REVENUE_MULTIPLIERS.items():
+        latest_class_revenue = fn(average_revenue)
+        yearly = {}
+        for i in range(years):
+            year = end_year - (years - 1 - i)
+            periods_back = years - 1 - i
+            revenue = latest_class_revenue / ((1 + implied_annual_growth) ** periods_back)
+            yearly[year] = build_income_statement(revenue, profile)
+        result[label] = yearly
+    return result
+
+
+def build_firm_distribution(total_firms: int):
+    """Modeled count + percentage of firms in each size class. The last
+    bucket absorbs any rounding remainder so the counts always sum exactly
+    to total_firms."""
+    labels = list(SIZE_CLASS_FIRM_SHARE.keys())
+    dist = {}
+    running_total = 0
+    for label in labels[:-1]:
+        share = SIZE_CLASS_FIRM_SHARE[label]
+        count = round(total_firms * share)
+        running_total += count
+        dist[label] = {"count": count, "pct": round(share * 100, 1)}
+    last_label = labels[-1]
+    last_count = max(total_firms - running_total, 0)
+    dist[last_label] = {
+        "count": last_count,
+        "pct": round((last_count / total_firms) * 100, 1) if total_firms else 0.0,
+    }
+    return dist
+
+
+def build_capital_intensity_by_size(capital_intensity_base: float):
+    """Modeled variation of capital intensity (assets/revenue) by size
+    class. Larger firms in most retail/service industries carry somewhat
+    more fixed infrastructure relative to revenue than very small firms, so
+    this applies a modest upward slope around the sector's base capital-
+    intensity assumption. Shown as a single current estimate rather than a
+    5-year table: unlike revenue/SDE/EBITDA (which we can model a trend for
+    using real employment growth), we don't have a comparably grounded way
+    to vary a capital-structure ratio year over year, so we don't fabricate
+    one."""
+    return {
+        "<$1M": round(capital_intensity_base * 0.85, 3),
+        "$1M - $5M": round(capital_intensity_base * 1.0, 3),
+        "$5M - $25M": round(capital_intensity_base * 1.25, 3),
+        "All Sizes": round(capital_intensity_base, 3),
+    }
