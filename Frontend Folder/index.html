@@ -1481,13 +1481,7 @@ function renderReport(data) {
 
     <div class="card">
       <h2>Financial Ratios <sup class="footnote-mark" title="Modeled — see note below">1</sup></h2>
-      <p class="caption">Latest year (${data.data_sources.cbp_year})</p>
-      ${ratiosTable(r)}
-    </div>
-
-    <div class="card">
-      <h2>Financial Ratios, 5-Year <sup class="footnote-mark" title="Modeled — see note below">1</sup></h2>
-      <p class="caption">This tool applies one fixed sector-typical cost and balance-sheet structure across all 5 years, then scales revenue using the observed employment growth rate. Because margin, liquidity, and turnover ratios are all proportions of that same fixed structure, they hold steady year to year by construction &mdash; so the values below reflect the latest year (${data.data_sources.cbp_year}) only. The one exception is Net Working Capital, a dollar-scale figure that genuinely moves as revenue grows &mdash; shown with its change since ${Object.keys(data.ratios_history).sort()[0]}.</p>
+      <p class="caption">Latest year (${data.data_sources.cbp_year}). This tool applies one fixed sector-typical cost and balance-sheet structure across all 5 modeled years, so margin, liquidity, and turnover ratios stay constant by construction &mdash; only Net Working Capital (a dollar-scale figure) genuinely moves as revenue grows, shown below with its change since ${Object.keys(data.ratios_history).sort()[0]}.</p>
       ${ratiosHistoryTable(data.ratios_history)}
     </div>
 
@@ -1670,7 +1664,7 @@ function ratiosHistoryTable(historyRatios) {
       ["Gross Margin", y => r(y).gross_margin_pct, pct],
     ])}
     ${section("Efficiency", [
-      ["Assets / Revenue", y => r(y).assets_to_revenue, num2],
+      ["Assets / Revenue (Capital Intensity)", y => r(y).assets_to_revenue, num2],
       ["Fixed Asset Turnover", y => r(y).fixed_asset_turnover, num2],
       ["Receivables Turnover", y => r(y).receivables_turnover, num2],
       ["Total Asset Turnover", y => r(y).total_asset_turnover, num2],
@@ -1768,35 +1762,6 @@ function balanceSheetTable(bs) {
       <tr class="${bold ? "subtotal" : ""}"><td>${label}</td><td>${money(val)}</td><td>${pctOfAssets(val, ta)}</td></tr>
     `).join("")}
   </tbody></table>`;
-}
-
-function ratiosTable(r) {
-  const num2 = v => (v === null || v === undefined) ? "—" : v.toFixed(2);
-  const section = (title, rows) => `
-    <h4 style="font-size:12.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--sub); margin:16px 0 6px;">${title}</h4>
-    <table><tbody>${rows.map(([label, val]) => `<tr><td>${label}</td><td>${val}</td></tr>`).join("")}</tbody></table>
-  `;
-  return `
-    ${section("Cash Flow &amp; Solvency", [
-      ["Current Ratio", num2(r.current_ratio)],
-      ["Quick Ratio", num2(r.quick_ratio)],
-      ["Days Payable", r.days_payable ?? "—"],
-      ["Net Working Capital", money(r.net_working_capital)],
-    ])}
-    ${section("Profitability", [
-      ["EBITDA / Revenue", pct(r.ebitda_margin_pct)],
-      ["Pre-Tax Return on Assets", pct(r.pretax_return_on_assets_pct)],
-      ["Pre-Tax Return on Net Worth", pct(r.pretax_return_on_net_worth_pct)],
-      ["Gross Margin", pct(r.gross_margin_pct)],
-    ])}
-    ${section("Efficiency", [
-      ["Assets / Revenue (Capital Intensity)", num2(r.capital_intensity)],
-      ["Fixed Asset Turnover", num2(r.fixed_asset_turnover)],
-      ["Receivables Turnover", num2(r.receivables_turnover)],
-      ["Total Asset Turnover", num2(r.total_asset_turnover)],
-      ["Days Working Capital", r.days_working_capital ?? "—"],
-    ])}
-  `;
 }
 
 function growthBadge(pct) {
