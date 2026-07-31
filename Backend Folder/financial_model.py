@@ -164,44 +164,41 @@ def build_ratios(income_stmt: dict, balance_sheet: dict) -> dict:
     }
 
 
-def build_history(latest_revenue: float, latest_employment: float, cbp_employment_prior: float,
-                   profile: dict, years: int = HISTORY_YEARS, end_year: int = 2024):
-    """
-    Builds a HISTORY_YEARS-long series ending at `latest_revenue`. Prior years
-    are modeled by applying a smoothed growth rate derived from the real CBP
-    employment trend (when available) or a conservative flat-to-modest-growth
-    default. This is explicitly a MODELED trend, not measured history --
-    Census's revenue figure (Economic Census) only exists for census years.
-    """
+def implied_growth_rate(latest_employment: float, cbp_employment_prior: float) -> float:
+    """Shared growth-rate estimator used for both state and national modeled
+    trends: derives an annual growth rate from the real 4-year change in CBP
+    employment (a genuine, measured signal), clamped to a sane range, with a
+    conservative flat-ish default when the employment data isn't available."""
     if cbp_employment_prior and latest_employment and cbp_employment_prior > 0:
-        implied_annual_growth = (latest_employment / cbp_employment_prior) ** (1 / 4) - 1
-        implied_annual_growth = max(min(implied_annual_growth, 0.08), -0.05)
-    else:
-        implied_annual_growth = 0.015  # conservative default assumption
+        rate = (latest_employment / cbp_employment_prior) ** (1 / 4) - 1
+        return max(min(rate, 0.08), -0.05)
+    return 0.015  # conservative default assumption
 
-    series = {}
+
+def build_history(latest_revenue: float, implied_annual_growth: float, profile: dict,
+                   capital_intensity: float, years: int = HISTORY_YEARS, end_year: int = 2024):
+    """
+    Builds a HISTORY_YEARS-long series ending at `latest_revenue`, with a
+    matching income statement, balance sheet, and ratio set for each year.
+    Prior years are modeled by applying `implied_annual_growth` (see
+    implied_growth_rate() above) backward from the latest year. This is
+    explicitly a MODELED trend, not measured history -- Census's revenue
+    figure (Economic Census) only exists for census years.
+    """
+    income_statement_history = {}
+    balance_sheet_history = {}
+    ratios_history = {}
     for i in range(years):
         year = end_year - (years - 1 - i)
         periods_back = years - 1 - i
         revenue = latest_revenue / ((1 + implied_annual_growth) ** periods_back)
         income_stmt = build_income_statement(revenue, profile)
-        series[year] = income_stmt
-    return series, implied_annual_growth
+        bs = build_balance_sheet(revenue, profile, capital_intensity)
+        ratios = build_ratios(income_stmt, bs)
+        income_statement_history[year] = income_stmt
+        balance_sheet_history[year] = bs
+        ratios_history[year] = ratios
+    return income_statement_history, balance_sheet_history, ratios_history
 
 
-def build_size_class_estimates(average_revenue: float, profile: dict):
-    """
-    Approximates the <$1M / $1M-$5M / $5M-$25M size-class breakdown shown in
-    typical benchmark reports. Census's size-class data (SUSB) is bucketed by
-    EMPLOYEE count, not revenue, so this maps the industry's typical revenue
-    distribution using modeled multipliers around the state average. Modeled.
-    """
-    buckets = {
-        "<$1M": min(average_revenue * 0.35, 900_000),
-        "$1M - $5M": max(average_revenue * 0.95, 1_200_000),
-        "$5M - $25M": max(average_revenue * 4.2, 6_000_000),
-    }
-    return {
-        label: build_income_statement(rev, profile)
-        for label, rev in buckets.items()
-    }
+# Shared revenue multipliers for the <$1M /
