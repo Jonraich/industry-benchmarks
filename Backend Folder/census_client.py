@@ -140,6 +140,30 @@ def fetch_cbp(naics_code: str, state_abbr: str, year: int = CBP_YEAR, api_key: s
     }
 
 
+def fetch_cbp_national(naics_code: str, year: int = CBP_YEAR, api_key: str = None):
+    """Same as fetch_cbp but for the whole United States -- used to derive a
+    real (not modeled) national employment growth rate, the same way
+    fetch_cbp does for the selected state."""
+    key = _get_key(api_key)
+    url = f"{CENSUS_BASE}/{year}/cbp"
+    params = {
+        "get": "ESTAB,EMP,PAYANN,NAICS2017_LABEL",
+        "for": "us:*",
+        "NAICS2017": naics_code,
+        "key": key,
+    }
+    rows = _request(url, params)
+    if not rows:
+        return None
+    row = rows[0]
+    return {
+        "year": year,
+        "establishments": _safe_int(row.get("ESTAB")),
+        "employment": _safe_int(row.get("EMP")),
+        "annual_payroll_thousands": _safe_int(row.get("PAYANN")),
+    }
+
+
 def _safe_int(v):
     try:
         return int(v)
