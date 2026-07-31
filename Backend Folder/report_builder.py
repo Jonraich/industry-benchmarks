@@ -113,4 +113,7 @@ def build_report(naics_code: str, state_abbr: str, api_key: str = None) -> dict:
         "size_class_estimates": size_classes,
         "implied_annual_growth_pct": round(implied_growth * 100, 2),
         "industry_trends": industry_trends.get_trend(naics_code),
+        "revenue_projection": industry_trends.project_revenue(
+            latest_average_revenue, latest_year, naics_code
+        ),
     }
