@@ -290,4 +290,55 @@ _ALIASES = {  # mirrors naics_sectors.py's sector aliasing
 def get_trend(naics_code: str) -> dict:
     prefix = (naics_code or "")[:2]
     prefix = _ALIASES.get(prefix, prefix)
-    sector
+    sector = SECTOR_TRENDS.get(prefix)
+    return {
+        "as_of": AS_OF,
+        "sources": {
+            "employment_growth": {"label": SOURCE_GROWTH, "url": SOURCE_GROWTH_URL},
+            "output_growth": {"label": SOURCE_OUTPUT, "url": SOURCE_OUTPUT_URL},
+            "ai_adoption": {"label": SOURCE_AI, "url": SOURCE_AI_URL},
+        },
+        "national": NATIONAL_BASELINE,
+        "sector": sector,
+        "sector_has_data": sector is not None,
+    }
+
+
+PROJECTION_TARGET_YEAR = 2034
+
+
+def project_revenue(latest_revenue: float, latest_year: int, naics_code: str) -> dict:
+    """Calculated projection (NOT a government figure): applies the real,
+    published BLS demand-side (output) growth rate for this industry to the
+    Census-derived average-revenue estimate, to show roughly where that
+    revenue figure would land by 2034 if it grows in line with the
+    industry's overall demand trend.
+
+    This combines two real, cited inputs (Census revenue + BLS output
+    growth) into one derived number -- it is a calculation performed by
+    this tool, not a statistic published by Census or BLS, and is labeled
+    as such wherever it's displayed.
+    """
+    prefix = (naics_code or "")[:2]
+    prefix = _ALIASES.get(prefix, prefix)
+    sector = SECTOR_TRENDS.get(prefix)
+
+    if sector and sector.get("output_growth_2024_2034_pct") is not None:
+        rate_pct = sector["output_growth_2024_2034_pct"]
+        basis = "sector-specific BLS output growth rate"
+    else:
+        rate_pct = NATIONAL_BASELINE["output_growth_2024_2034_pct"]
+        basis = "national-average BLS output growth rate (sector-specific figure not published)"
+
+    years = max(PROJECTION_TARGET_YEAR - latest_year, 0)
+    projected_revenue = latest_revenue * ((1 + rate_pct / 100) ** years) if latest_revenue else None
+
+    return {
+        "base_year": latest_year,
+        "target_year": PROJECTION_TARGET_YEAR,
+        "years_projected": years,
+        "annual_growth_rate_pct_used": rate_pct,
+        "growth_rate_basis": basis,
+        "base_revenue": latest_revenue,
+        "projected_revenue": round(projected_revenue) if projected_revenue is not None else None,
+    }
