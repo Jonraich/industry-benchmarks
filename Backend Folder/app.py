@@ -8,12 +8,17 @@ Run:
 Then open http://localhost:5000
 """
 import os
+import re
 from flask import Flask, jsonify, request, send_from_directory
 
 from census_client import CensusAPIError
 from naics_codes import search_naics
 from states import STATE_NAMES
 from report_builder import build_report
+from pdf_report import build_pdf
+from email_sender import send_report_email, EmailSendError
+
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 def _find_frontend_dir():
     """Locate the folder containing index.html, tolerating naming/casing
@@ -71,6 +76,43 @@ def report():
     if "error" in data:
         return jsonify(data), 404
     return jsonify(data)
+
+
+@app.post("/api/email-report")
+def email_report():
+    payload = request.get_json(silent=True) or {}
+    naics = payload.get("naics")
+    state = payload.get("state")
+    email = (payload.get("email") or "").strip()
+    api_key = payload.get("key")  # optional override of CENSUS_API_KEY env var
+
+    if not naics or not state:
+        return jsonify({"error": "naics and state are required"}), 400
+    if not email or not EMAIL_RE.match(email):
+        return jsonify({"error": "Please provide a valid email address."}), 400
+
+    try:
+        data = build_report(naics, state, api_key=api_key)
+    except CensusAPIError as e:
+        return jsonify({"error": str(e)}), 502
+    if "error" in data:
+        return jsonify(data), 404
+
+    try:
+        pdf_bytes = build_pdf(data)
+    except Exception as e:
+        return jsonify({"error": f"Could not build the PDF: {e}"}), 500
+
+    try:
+        send_report_email(
+            email, pdf_bytes,
+            data["industry"].get("naics_label", "Industry"),
+            data["geography"]["state_name"],
+        )
+    except EmailSendError as e:
+        return jsonify({"error": str(e)}), 502
+
+    return jsonify({"ok": True})
 
 
 if __name__ == "__main__":
