@@ -1487,7 +1487,7 @@ function renderReport(data) {
 
     <div class="card">
       <h2>Financial Ratios, 5-Year <sup class="footnote-mark" title="Modeled — see note below">1</sup></h2>
-      <p class="caption">This tool applies one fixed sector-typical cost and balance-sheet structure across all 5 years, then scales revenue using the observed employment growth rate. Because margin, liquidity, and turnover ratios are all proportions of that same fixed structure, they hold steady year to year by construction &mdash; only dollar-scale figures like Net Working Capital move as revenue grows. This is a limitation of modeling from one snapshot rather than measured historical statements.</p>
+      <p class="caption">This tool applies one fixed sector-typical cost and balance-sheet structure across all 5 years, then scales revenue using the observed employment growth rate. Because margin, liquidity, and turnover ratios are all proportions of that same fixed structure, they hold steady year to year by construction &mdash; so the values below reflect the latest year (${data.data_sources.cbp_year}) only. The one exception is Net Working Capital, a dollar-scale figure that genuinely moves as revenue grows &mdash; shown with its change since ${Object.keys(data.ratios_history).sort()[0]}.</p>
       ${ratiosHistoryTable(data.ratios_history)}
     </div>
 
@@ -1638,15 +1638,21 @@ function ratiosHistoryTable(historyRatios) {
   const num2 = v => (v === null || v === undefined) ? "—" : v.toFixed(2);
   const firstYear = years[0], lastYear = years[years.length - 1];
   const section = (title, rows) => `
-    <h4 style="font-size:12.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--sub); margin:16px 0 6px;">${title}</h4>
-    <table><thead><tr><th>Ratio</th>${years.map(y => `<th>${y}</th>`).join("")}</tr></thead><tbody>
+    <h4 style="font-size:12.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--sub); margin:16px 0 8px;">${title}</h4>
+    <table><tbody>
       ${rows.map(([label, getter, fmt]) => {
         const values = years.map(y => getter(y));
         const isConstant = values.length > 1 && values.every(v => v === values[0]);
-        if (isConstant) {
-          return `<tr><td>${label}</td><td colspan="${years.length}" style="text-align:left; color:var(--ink);">${fmt(values[0])} <span style="font-size:11px; font-weight:600; color:var(--sub); text-transform:none; letter-spacing:normal;">— constant, ${firstYear}&ndash;${lastYear} (see note above)</span></td></tr>`;
+        const latest = values[values.length - 1];
+        let valueHtml = fmt(latest);
+        if (!isConstant) {
+          const first = values[0];
+          const chg = first ? (latest - first) / first : 0;
+          const chgClass = chg > 0 ? "trend-up" : (chg < 0 ? "trend-down" : "");
+          const chgLabel = `${chg >= 0 ? "+" : ""}${(chg * 100).toFixed(1)}% since ${firstYear}`;
+          valueHtml += ` <span class="${chgClass}" style="font-size:12px; font-weight:600;">${chgLabel}</span>`;
         }
-        return `<tr><td>${label}</td>${values.map(v => `<td>${fmt(v)}</td>`).join("")}</tr>`;
+        return `<tr><td style="padding:8px 10px; border-bottom:1px solid var(--line);">${label}</td><td style="padding:8px 10px; border-bottom:1px solid var(--line); text-align:right; font-weight:700;">${valueHtml}</td></tr>`;
       }).join("")}
     </tbody></table>
   `;
