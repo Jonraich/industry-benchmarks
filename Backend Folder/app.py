@@ -15,7 +15,28 @@ from naics_codes import search_naics
 from states import STATE_NAMES
 from report_builder import build_report
 
-FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
+def _find_frontend_dir():
+    """Locate the folder containing index.html, tolerating naming/casing
+    differences (e.g. 'frontend' vs 'Frontend Folder') so this doesn't break
+    just because a folder got renamed during upload to GitHub."""
+    parent = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    candidates = ["frontend", "Frontend Folder", "Frontend", "front-end"]
+    for name in candidates:
+        path = os.path.join(parent, name)
+        if os.path.isfile(os.path.join(path, "index.html")):
+            return path
+    # Fall back to scanning every sibling directory for index.html.
+    for entry in os.listdir(parent):
+        path = os.path.join(parent, entry)
+        if os.path.isdir(path) and os.path.isfile(os.path.join(path, "index.html")):
+            return path
+    raise FileNotFoundError(
+        "Could not find a folder containing index.html next to the backend "
+        "folder. Make sure your frontend files are in a sibling directory."
+    )
+
+
+FRONTEND_DIR = _find_frontend_dir()
 
 app = Flask(__name__, static_folder=FRONTEND_DIR, static_url_path="")
 
