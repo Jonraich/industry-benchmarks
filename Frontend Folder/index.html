@@ -1407,6 +1407,17 @@ function renderReport(data) {
   const r = data.financial_ratios;
 
   root.innerHTML = `
+    <div class="card" style="padding: 14px 24px;">
+      <div id="emailPromptRow" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <button id="emailToggleBtn" type="button" style="background:var(--card); color:var(--accent-dark); border:1px solid var(--accent); padding:8px 16px; font-size:13px; font-weight:600; border-radius:7px; cursor:pointer;">Email me this report (PDF)</button>
+        <span id="emailStatus" style="font-size:12.5px;"></span>
+      </div>
+      <div id="emailForm" style="display:none; margin-top:12px; gap:10px; align-items:center; flex-wrap:wrap;">
+        <input type="email" id="emailInput" placeholder="you@example.com" style="flex:1; min-width:220px; padding:9px 12px; border:1px solid var(--line); border-radius:7px; font-size:13.5px;" />
+        <button id="emailSendBtn" type="button" style="background:var(--accent); color:white; border:none; border-radius:7px; padding:9px 18px; font-size:13px; font-weight:600; cursor:pointer;">Send</button>
+      </div>
+    </div>
+
     <div class="card">
       <h2>${data.industry.naics_label || "Industry"} <span class="source-tag real">Census data</span></h2>
       <p class="caption">${data.geography.state_name} · NAICS ${data.industry.naics_code} · Modeled with the "${data.industry.sector_profile_used}" sector profile</p>
@@ -1532,6 +1543,60 @@ function renderReport(data) {
   `;
 
   renderTrendChart(data.income_statement_history);
+  setupEmailUI(data.geography.state, data.industry.naics_code);
+}
+
+function setupEmailUI(state, naics) {
+  const toggleBtn = document.getElementById("emailToggleBtn");
+  const form = document.getElementById("emailForm");
+  const input = document.getElementById("emailInput");
+  const sendBtn = document.getElementById("emailSendBtn");
+  const status = document.getElementById("emailStatus");
+  if (!toggleBtn) return;
+
+  toggleBtn.addEventListener("click", () => {
+    const showing = form.style.display === "flex";
+    form.style.display = showing ? "none" : "flex";
+    if (!showing) input.focus();
+  });
+
+  sendBtn.addEventListener("click", async () => {
+    const email = input.value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      status.textContent = "Enter a valid email address.";
+      status.style.color = "#b3261e";
+      return;
+    }
+    sendBtn.disabled = true;
+    sendBtn.textContent = "Sending…";
+    status.textContent = "";
+    try {
+      const res = await fetch(`${API}/api/email-report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ state, naics, email }),
+      });
+      const result = await res.json();
+      if (!res.ok || result.error) {
+        status.textContent = result.error || "Something went wrong sending the email.";
+        status.style.color = "#b3261e";
+      } else {
+        status.textContent = "Sent! Check your inbox (and spam folder).";
+        status.style.color = "var(--accent-dark)";
+        form.style.display = "none";
+      }
+    } catch (err) {
+      status.textContent = `Request failed: ${err.message}`;
+      status.style.color = "#b3261e";
+    } finally {
+      sendBtn.disabled = false;
+      sendBtn.textContent = "Send";
+    }
+  });
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); sendBtn.click(); }
+  });
 }
 
 function firmDistributionTable(dist, totalFirms) {
