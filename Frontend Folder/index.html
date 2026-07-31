@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Industry Financial Benchmarks</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root {
+    --ink: #12212b;
+    --sub: #5b6b74;
+    --line: #dfe6ea;
+    --bg: #f6f8f9;
+    --card: #ffffff;
+    --accent: #0f7a63;
+    --accent-dark: #0a5a49;
+    --warn-bg: #fff6e5;
+    --warn-border: #e8c674;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  header {
+    background: var(--accent-dark);
+    color: white;
+    padding: 28px 32px;
+  }
+  header h1 { margin: 0 0 4px; font-size: 22px; font-weight: 700; }
+  header p { margin: 0; opacity: 0.85; font-size: 14px; }
+
+  .controls {
+    max-width: 1000px;
+    margin: -20px auto 0;
+    background: var(--card);
+    border-radius: 10px;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+    padding: 20px 24px;
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    position: relative;
+  }
+  .field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px; }
+  .field label { font-size: 12px; font-weight: 600; color: var(--sub); text-transform: uppercase; letter-spacing: .03em; }
+  select, input {
+    padding: 10px 12px; border: 1px solid var(--line); border-radius: 7px; font-size: 14px;
+  }
+  button {
+    background: var(--accent); color: white; border: none; border-radius: 7px;
+    padding: 11px 22px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  button:hover { background: var(--accent-dark); }
+  button:disabled { opacity: 0.6; cursor: default; }
+
+  main { max-width: 1000px; margin: 28px auto 60px; padding: 0 16px; }
+  .card {
+    background: var(--card); border-radius: 10px; border: 1px solid var(--line);
+    padding: 22px 24px; margin-bottom: 20px;
+  }
+  .card h2 { margin: 0 0 4px; font-size: 17px; }
+  .card .caption { margin: 0 0 16px; font-size: 12.5px; color: var(--sub); }
+  .source-tag {
+    display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .03em;
+    padding: 2px 8px; border-radius: 20px; margin-left: 8px; text-transform: uppercase;
+  }
+  .source-tag.real { background: #e3f3ef; color: var(--accent-dark); }
+  .source-tag.modeled { background: var(--warn-bg); color: #8a6d1f; border: 1px solid var(--warn-border); }
+
+  .glance-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+  .glance-stat { text-align: left; }
+  .glance-stat .value { font-size: 22px; font-weight: 700; }
+  .glance-stat .label { font-size: 12px; color: var(--sub); margin-top: 2px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { color: var(--sub); font-weight: 600; font-size: 11.5px; text-transform: uppercase; }
+  tr.total td { font-weight: 700; border-top: 2px solid var(--ink); }
+  tr.subtotal td { font-weight: 700; }
+
+  .disclaimer {
+    background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 8px;
+    padding: 16px 18px; font-size: 12.5px; line-height: 1.55; color: #5c4a12;
+  }
+  .disclaimer h3 { margin: 0 0 6px; font-size: 13px; }
+
+  .error-box {
+    background: #fdecea; border: 1px solid #f3b7ae; color: #7a271a; padding: 16px 18px;
+    border-radius: 8px; font-size: 13.5px;
+  }
+  .loading { text-align: center; padding: 40px; color: var(--sub); }
+  canvas { max-height: 280px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 720px) { .grid-2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Industry Financial Benchmarks</h1>
+  <p>State &amp; national industry benchmarks built from live U.S. Census Bureau data, with modeled financial detail.</p>
+</header>
+
+<div class="controls">
+  <div class="field">
+    <label for="stateSelect">State</label>
+    <select id="stateSelect"></select>
+  </div>
+  <div class="field" style="flex: 2;">
+    <label for="naicsInput">Industry</label>
+    <input list="naicsList" id="naicsInput" placeholder="Search industry (e.g. restaurants, plumbing, retail)" />
+    <datalist id="naicsList"></datalist>
+  </div>
+  <div class="field" style="flex: 0 0 auto;">
+    <label>&nbsp;</label>
+    <button id="generateBtn">Generate Report</button>
+  </div>
+</div>
+
+<main id="reportRoot">
+  <div class="loading">Select a state and industry, then click Generate Report.</div>
+</main>
+
+<script>
+const API = "";
+let naicsMap = {}; // label -> code
+
+// Static state list (mirrors backend/states.py). Embedded directly rather
+// than fetched from /api/states so the dropdown always populates even if
+// the backend is unreachable, misconfigured, or this file is opened
+// directly (file://) instead of served through Flask.
+const STATES = [
+  ["AL","Alabama"],["AK","Alaska"],["AZ","Arizona"],["AR","Arkansas"],["CA","California"],
+  ["CO","Colorado"],["CT","Connecticut"],["DE","Delaware"],["DC","District of Columbia"],
+  ["FL","Florida"],["GA","Georgia"],["HI","Hawaii"],["ID","Idaho"],["IL","Illinois"],
+  ["IN","Indiana"],["IA","Iowa"],["KS","Kansas"],["KY","Kentucky"],["LA","Louisiana"],
+  ["ME","Maine"],["MD","Maryland"],["MA","Massachusetts"],["MI","Michigan"],["MN","Minnesota"],
+  ["MS","Mississippi"],["MO","Missouri"],["MT","Montana"],["NE","Nebraska"],["NV","Nevada"],
+  ["NH","New Hampshire"],["NJ","New Jersey"],["NM","New Mexico"],["NY","New York"],
+  ["NC","North Carolina"],["ND","North Dakota"],["OH","Ohio"],["OK","Oklahoma"],["OR","Oregon"],
+  ["PA","Pennsylvania"],["RI","Rhode Island"],["SC","South Carolina"],["SD","South Dakota"],
+  ["TN","Tennessee"],["TX","Texas"],["UT","Utah"],["VT","Vermont"],["VA","Virginia"],
+  ["WA","Washington"],["WV","West Virginia"],["WI","Wisconsin"],["WY","Wyoming"],
+].sort((a, b) => a[1].localeCompare(b[1]));
+
+function loadStates() {
+  const sel = document.getElementById("stateSelect");
+  sel.innerHTML = STATES.map(([code, name]) => `<option value="${code}">${name}</option>`).join("");
+}
+
+// Static NAICS picker list (mirrors backend/naics_codes.py). Embedded and
+// filtered client-side, same reasoning as STATES above: the industry
+// search box should work instantly without depending on a live fetch to
+// the Flask backend. Only "Generate Report" needs the backend (it calls
+// the live Census API).
+const NAICS_CODES = [
+  ["236115","New Single-Family Housing Construction"],
+  ["236220","Commercial and Institutional Building Construction"],
+  ["237310","Highway, Street, and Bridge Construction"],
+  ["238110","Poured Concrete Foundation and Structure Contractors"],
+  ["238160","Roofing Contractors"],
+  ["238210","Electrical Contractors"],
+  ["238220","Plumbing, Heating, and Air-Conditioning Contractors"],
+  ["238350","Finish Carpentry Contractors"],
+  ["311811","Retail Bakeries"],
+  ["312120","Breweries"],
+  ["321912","Cut Stock, Resawing Lumber, and Planing"],
+  ["332710","Machine Shops"],
+  ["337110","Wood Kitchen Cabinet and Countertop Manufacturing"],
+  ["339999","All Other Miscellaneous Manufacturing"],
+  ["423430","Computer and Computer Peripheral Equipment Wholesalers"],
+  ["423840","Industrial Supplies Wholesalers"],
+  ["424410","General Line Grocery Wholesalers"],
+  ["424690","Other Chemical and Allied Products Wholesalers"],
+  ["441110","New Car Dealers"],
+  ["441120","Used Car Dealers"],
+  ["444110","Home Centers"],
+  ["444230","Outdoor Power Equipment Stores"],
+  ["445110","Supermarkets and Other Grocery Retailers"],
+  ["445230","Fruit and Vegetable Retailers"],
+  ["446110","Pharmacies and Drug Retailers"],
+  ["446120","Cosmetics, Beauty Supplies, and Perfume Retailers"],
+  ["447110","Gasoline Stations with Convenience Stores"],
+  ["448110","Women's Clothing Retailers"],
+  ["448120","Men's Clothing Retailers"],
+  ["448140","Family Clothing Retailers"],
+  ["451110","Sporting Goods Retailers"],
+  ["451211","Book Retailers"],
+  ["452210","Department Stores"],
+  ["453220","Gift, Novelty, and Souvenir Retailers"],
+  ["453910","Pet and Pet Supplies Retailers"],
+  ["454110","Electronic Shopping and Mail-Order Houses"],
+  ["484110","General Freight Trucking, Local"],
+  ["484230","Specialized Freight (except Used Goods) Trucking, Long-Distance"],
+  ["485310","Taxi and Ridesharing Services"],
+  ["488510","Freight Transportation Arrangement"],
+  ["493110","General Warehousing and Storage"],
+  ["511210","Software Publishers"],
+  ["512110","Motion Picture and Video Production"],
+  ["515210","Media Streaming Distribution Services"],
+  ["519290","Web Search Portals and All Other Information Services"],
+  ["522110","Commercial Banking"],
+  ["523930","Investment Advice"],
+  ["524210","Insurance Agencies and Brokerages"],
+  ["531210","Offices of Real Estate Agents and Brokers"],
+  ["531311","Residential Property Managers"],
+  ["532120","Truck, Utility Trailer, and RV Rental and Leasing"],
+  ["541110","Offices of Lawyers"],
+  ["541211","Offices of Certified Public Accountants"],
+  ["541330","Engineering Services"],
+  ["541511","Custom Computer Programming Services"],
+  ["541512","Computer Systems Design Services"],
+  ["541613","Marketing Consulting Services"],
+  ["541810","Advertising Agencies"],
+  ["541921","Photography Studios, Portrait"],
+  ["541930","Translation and Interpretation Services"],
+  ["561320","Temporary Help Services"],
+  ["561440","Collection Agencies"],
+  ["561621","Security Systems Services (except Locksmiths)"],
+  ["561730","Landscaping Services"],
+  ["561740","Carpet and Upholstery Cleaning Services"],
+  ["561790","Other Services to Buildings and Dwellings"],
+  ["611110","Elementary and Secondary Schools"],
+  ["611420","Computer Training"],
+  ["611620","Sports and Recreation Instruction"],
+  ["621111","Offices of Physicians (except Mental Health Specialists)"],
+  ["621210","Offices of Dentists"],
+  ["621310","Offices of Chiropractors"],
+  ["621340","Offices of Physical, Occupational and Speech Therapists"],
+  ["621610","Home Health Care Services"],
+  ["622110","General Medical and Surgical Hospitals"],
+  ["623110","Nursing Care Facilities (Skilled Nursing Facilities)"],
+  ["624410","Child Day Care Services"],
+  ["711130","Musical Groups and Artists"],
+  ["713940","Fitness and Recreational Sports Centers"],
+  ["713990","All Other Amusement and Recreation Industries"],
+  ["721110","Hotels (except Casino Hotels) and Motels"],
+  ["722511","Full-Service Restaurants"],
+  ["722513","Limited-Service Restaurants"],
+  ["722515","Snack and Nonalcoholic Beverage Bars"],
+  ["811111","General Automotive Repair"],
+  ["811310","Commercial and Industrial Machinery and Equipment Repair"],
+  ["812111","Barber Shops"],
+  ["812112","Beauty Salons"],
+  ["812113","Nail Salons"],
+  ["812191","Diet and Weight Reducing Centers"],
+  ["812210","Funeral Homes and Funeral Services"],
+  ["812320","Drycleaning and Laundry Services (except Coin-Operated)"],
+  ["812910","Pet Care (except Veterinary) Services"],
+  ["812921","Photofinishing Laboratories (except One-Hour)"],
+  ["813110","Religious Organizations"],
+];
+
+function searchNaics(q) {
+  const query = (q || "").trim().toLowerCase();
+  let results;
+  if (!query) {
+    results = NAICS_CODES.slice(0, 25);
+  } else if (/^\d+$/.test(query)) {
+    results = NAICS_CODES.filter(([code]) => code.startsWith(query)).slice(0, 25);
+  } else {
+    results = NAICS_CODES.filter(([, label]) => label.toLowerCase().includes(query)).slice(0, 25);
+  }
+  const list = document.getElementById("naicsList");
+  naicsMap = {};
+  list.innerHTML = results.map(([code, label]) => {
+    const display = `${label} (${code})`;
+    naicsMap[display] = code;
+    return `<option value="${display}"></option>`;
+  }).join("");
+}
+
+document.getElementById("naicsInput").addEventListener("input", (e) => {
+  searchNaics(e.target.value);
+});
+
+document.getElementById("generateBtn").addEventListener("click", generateReport);
+
+function money(v, decimals = 0) {
+  if (v === null || v === undefined) return "—";
+  return "$" + Number(v).toLocaleString(undefined, { maximumFractionDigits: decimals });
+}
+function pct(v) {
+  if (v === null || v === undefined) return "—";
+  return (v * 100).toFixed(1) + "%";
+}
+function num(v) {
+  if (v === null || v === undefined) return "—";
+  return Number(v).toLocaleString();
+}
+function pctOfRevenue(v, revenue) {
+  return pct(revenue ? v / revenue : 0);
+}
+function pctOfAssets(v, assets) {
+  return pct(assets ? v / assets : 0);
+}
+
+async function generateReport() {
+  const state = document.getElementById("stateSelect").value;
+  const naicsText = document.getElementById("naicsInput").value.trim();
+  // Resolve the NAICS code three ways, most reliable first:
+  // (1) a "(123456)" suffix from a picked suggestion, parsed directly out of
+  //     the text rather than looked up in naicsMap (which gets rebuilt/wiped
+  //     by the input handler firing again when the suggestion is selected);
+  // (2) a direct hit in naicsMap, in case it's still populated;
+  // (3) the text itself, if the user typed a bare NAICS code.
+  const codeSuffixMatch = naicsText.match(/\((\d{4,6})\)\s*$/);
+  const naics = (codeSuffixMatch && codeSuffixMatch[1])
+    || naicsMap[naicsText]
+    || (/^\d{4,6}$/.test(naicsText) ? naicsText : null);
+  const root = document.getElementById("reportRoot");
+
+  if (!naics) {
+    root.innerHTML = `<div class="error-box">Pick an industry from the suggestions (or type a NAICS code) before generating a report.</div>`;
+    return;
+  }
+
+  root.innerHTML = `<div class="loading">Pulling live Census data and building the report…</div>`;
+  document.getElementById("generateBtn").disabled = true;
+
+  try {
+    const res = await fetch(`${API}/api/report?naics=${encodeURIComponent(naics)}&state=${encodeURIComponent(state)}`);
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      root.innerHTML = `<div class="error-box">${data.error || "Something went wrong generating this report."}</div>`;
+      return;
+    }
+    renderReport(data);
+  } catch (err) {
+    root.innerHTML = `<div class="error-box">Request failed: ${err.message}</div>`;
+  } finally {
+    document.getElementById("generateBtn").disabled = false;
+  }
+}
+
+function renderReport(data) {
+  const root = document.getElementById("reportRoot");
+  const g = data.industry_at_a_glance;
+  const is = data.income_statement_latest;
+  const bs = data.balance_sheet;
+  const r = data.financial_ratios;
+
+  root.innerHTML = `
+    <div class="card">
+      <h2>${data.industry.naics_label || "Industry"} <span class="source-tag real">Census data</span></h2>
+      <p class="caption">${data.geography.state_name} · NAICS ${data.industry.naics_code} · Modeled with the "${data.industry.sector_profile_used}" sector profile</p>
+      <div class="glance-grid">
+        <div class="glance-stat"><div class="value">${num(g.total_firms)}</div><div class="label">Firms (2022 Economic Census)</div></div>
+        <div class="glance-stat"><div class="value">${money(g.total_revenue)}</div><div class="label">Total industry revenue</div></div>
+        <div class="glance-stat"><div class="value">${num(g.total_employment)}</div><div class="label">Total employment</div></div>
+        <div class="glance-stat"><div class="value">${money(g.total_payroll)}</div><div class="label">Total annual payroll</div></div>
+        <div class="glance-stat"><div class="value">${money(g.average_revenue_per_firm)}</div><div class="label">Est. average revenue / firm (${data.data_sources.cbp_year})</div></div>
+        <div class="glance-stat"><div class="value">${g.national_average_revenue_per_firm ? money(g.national_average_revenue_per_firm) : "—"}</div><div class="label">National average revenue / firm</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Revenue &amp; SDE Trend <span class="source-tag modeled">Modeled trend</span></h2>
+      <p class="caption">5-year series modeled from the latest average-revenue estimate using observed employment growth. Not measured year-by-year data.</p>
+      <canvas id="trendChart"></canvas>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h2>Income Statement <span class="source-tag modeled">Modeled</span></h2>
+        <p class="caption">% of average revenue, latest year (${data.data_sources.cbp_year})</p>
+        ${incomeStatementTable(is)}
+      </div>
+      <div class="card">
+        <h2>Balance Sheet <span class="source-tag modeled">Modeled</span></h2>
+        <p class="caption">% of total assets, latest year</p>
+        ${balanceSheetTable(bs)}
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Financial Ratios <span class="source-tag modeled">Modeled</span></h2>
+      ${ratiosTable(r)}
+    </div>
+
+    <div class="card">
+      <h2>By Revenue Size Class <span class="source-tag modeled">Modeled</span></h2>
+      <p class="caption">Estimated SDE and EBITDA by size class, scaled from the sector profile.</p>
+      ${sizeClassTable(data.size_class_estimates)}
+    </div>
+
+    <div class="disclaimer">
+      <h3>Methodology &amp; disclosures</h3>
+      <p>${data.methodology_note}</p>
+      <p>${data.data_sources.revenue_scaling_assumption} Implied annual growth used for the trend line: ${data.implied_annual_growth_pct}%.</p>
+      <p>This report is generated independently from public U.S. Census Bureau data and general industry-typical financial assumptions. It is not affiliated with, endorsed by, or derived from any third-party proprietary benchmark provider. Figures are estimates for general informational purposes only and should not be used as the sole basis for a valuation, lending, or investment decision.</p>
+    </div>
+  `;
+
+  renderTrendChart(data.income_statement_history);
+}
+
+function incomeStatementTable(is) {
+  const rev = is.revenue;
+  const rows = [
+    ["Business Revenue", rev, 1],
+    ["Cost of Sales", is.cost_of_sales],
+    ["Gross Profit", is.gross_profit, 1],
+    ["Officers Compensation", is.opex.officers_compensation],
+    ["Salary &amp; Wages", is.opex.salary_and_wages],
+    ["Benefits &amp; Pensions", is.opex.benefits_and_pensions],
+    ["Rent", is.opex.rent],
+    ["Other Expenses", is.opex.other_expenses],
+    ["Depreciation &amp; Amortization", is.opex.depreciation_and_amortization],
+    ["Total Operating Expenses", is.opex.total, 1],
+    ["Operating Income", is.operating_income, 1],
+    ["Interest Income", is.other.interest_income],
+    ["Interest Expense", is.other.interest_expense],
+    ["Other Income", is.other.other_income],
+    ["EBITDA", is.ebitda, 1],
+    ["SDE (Cash Flow)", is.sde, 1],
+    ["Pre-Tax Net Profit", is.pretax_net_profit, 1],
+  ];
+  return `<table><thead><tr><th>Line Item</th><th>Amount</th><th>% of Revenue</th></tr></thead><tbody>
+    ${rows.map(([label, val, bold]) => `
+      <tr class="${bold ? "subtotal" : ""}"><td>${label}</td><td>${money(val)}</td><td>${pctOfRevenue(val, rev)}</td></tr>
+    `).join("")}
+  </tbody></table>`;
+}
+
+function balanceSheetTable(bs) {
+  const ta = bs.total_assets;
+  const rows = [
+    ["Cash", bs.current_assets.cash],
+    ["Receivables", bs.current_assets.receivables],
+    ["Inventory", bs.current_assets.inventory],
+    ["Other Current Assets", bs.current_assets.other],
+    ["Total Current Assets", bs.current_assets.total, 1],
+    ["Net Fixed Assets", bs.fixed_assets.net],
+    ["Other Non-Current Assets", bs.other_non_current_assets],
+    ["Total Assets", ta, 1],
+    ["Accounts Payable", bs.current_liabilities.accounts_payable],
+    ["Notes Payable", bs.current_liabilities.notes_payable],
+    ["Other Current Liabilities", bs.current_liabilities.other],
+    ["Total Current Liabilities", bs.current_liabilities.total, 1],
+    ["Long-Term Liabilities", bs.long_term_liabilities],
+    ["Total Liabilities", bs.total_liabilities, 1],
+    ["Equity", bs.equity, 1],
+  ];
+  return `<table><thead><tr><th>Line Item</th><th>Amount</th><th>% of Assets</th></tr></thead><tbody>
+    ${rows.map(([label, val, bold]) => `
+      <tr class="${bold ? "subtotal" : ""}"><td>${label}</td><td>${money(val)}</td><td>${pctOfAssets(val, ta)}</td></tr>
+    `).join("")}
+  </tbody></table>`;
+}
+
+function ratiosTable(r) {
+  const rows = [
+    ["Current Ratio", r.current_ratio?.toFixed(2)],
+    ["Quick Ratio", r.quick_ratio?.toFixed(2)],
+    ["Days Payable", r.days_payable],
+    ["Net Working Capital", money(r.net_working_capital)],
+    ["EBITDA Margin", pct(r.ebitda_margin_pct)],
+    ["Gross Margin", pct(r.gross_margin_pct)],
+    ["Pre-Tax Return on Assets", pct(r.pretax_return_on_assets_pct)],
+    ["Pre-Tax Return on Net Worth", pct(r.pretax_return_on_net_worth_pct)],
+    ["Assets / Revenue (Capital Intensity)", r.capital_intensity?.toFixed(2)],
+    ["Fixed Asset Turnover", r.fixed_asset_turnover?.toFixed(2)],
+    ["Receivables Turnover", r.receivables_turnover?.toFixed(2)],
+    ["Total Asset Turnover", r.total_asset_turnover?.toFixed(2)],
+    ["Days Working Capital", r.days_working_capital],
+  ];
+  return `<table><tbody>
+    ${rows.map(([label, val]) => `<tr><td>${label}</td><td>${val ?? "—"}</td></tr>`).join("")}
+  </tbody></table>`;
+}
+
+function sizeClassTable(sizeClasses) {
+  const labels = Object.keys(sizeClasses);
+  return `<table><thead><tr><th>Metric</th>${labels.map(l => `<th>${l}</th>`).join("")}</tr></thead><tbody>
+    <tr><td>Revenue</td>${labels.map(l => `<td>${money(sizeClasses[l].revenue)}</td>`).join("")}</tr>
+    <tr><td>Gross Profit</td>${labels.map(l => `<td>${money(sizeClasses[l].gross_profit)}</td>`).join("")}</tr>
+    <tr><td>EBITDA</td>${labels.map(l => `<td>${money(sizeClasses[l].ebitda)}</td>`).join("")}</tr>
+    <tr><td>SDE</td>${labels.map(l => `<td>${money(sizeClasses[l].sde)}</td>`).join("")}</tr>
+  </tbody></table>`;
+}
+
+let trendChartInstance = null;
+function renderTrendChart(history) {
+  const years = Object.keys(history).sort();
+  const revenue = years.map(y => history[y].revenue);
+  const sde = years.map(y => history[y].sde);
+  const ebitda = years.map(y => history[y].ebitda);
+
+  const ctx = document.getElementById("trendChart");
+  if (trendChartInstance) trendChartInstance.destroy();
+  trendChartInstance = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: years,
+      datasets: [
+        { label: "Revenue", data: revenue, borderColor: "#0f7a63", backgroundColor: "rgba(15,122,99,0.08)", yAxisID: "y", tension: 0.25 },
+        { label: "SDE", data: sde, borderColor: "#c98a1b", backgroundColor: "rgba(201,138,27,0.08)", yAxisID: "y1", tension: 0.25 },
+        { label: "EBITDA", data: ebitda, borderColor: "#5b6b74", backgroundColor: "rgba(91,107,116,0.08)", yAxisID: "y1", tension: 0.25 },
+      ],
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: "index", intersect: false },
+      scales: {
+        y: { position: "left", ticks: { callback: v => "$" + (v/1000).toFixed(0) + "k" }, title: { display: true, text: "Revenue" } },
+        y1: { position: "right", grid: { drawOnChartArea: false }, ticks: { callback: v => "$" + (v/1000).toFixed(0) + "k" }, title: { display: true, text: "SDE / EBITDA" } },
+      },
+    },
+  });
+}
+
+loadStates();
+searchNaics("");
+</script>
+</body>
+</html>

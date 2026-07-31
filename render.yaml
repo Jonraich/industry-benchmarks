@@ -1,0 +1,19 @@
+# Optional: Render "Blueprint" config. If you use Render's New > Blueprint
+# flow and point it at this repo, it will read this file and pre-fill the
+# service settings below (you'll still be prompted to enter CENSUS_API_KEY
+# yourself, since secrets aren't stored in this file).
+#
+# If Blueprint deploy doesn't work smoothly, just use New > Web Service
+# instead and enter these same settings manually in the dashboard --
+# see README.md for that walkthrough.
+services:
+  - type: web
+    name: industry-benchmarks
+    env: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: CENSUS_API_KEY
+        sync: false
