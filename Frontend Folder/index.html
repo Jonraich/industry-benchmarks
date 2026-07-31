@@ -70,8 +70,14 @@
   }
   .source-tag.real { background: #e3f3ef; color: var(--accent-dark); }
   .source-tag.modeled { background: var(--warn-bg); color: #8a6d1f; border: 1px solid var(--warn-border); }
+  .source-tag.calculated { background: #e8eefb; color: #1d4ed8; border: 1px solid #b9cdf5; }
   .trend-up { color: var(--accent-dark); }
   .trend-down { color: #b3261e; }
+  .calc-box {
+    background: #f4f7fe; border: 1px solid #cdd9f7; border-radius: 8px;
+    padding: 14px 16px; font-size: 13px; line-height: 1.55; color: #1e2a4a; margin-top: 14px;
+  }
+  .calc-box .calc-value { font-size: 20px; font-weight: 700; color: #1d4ed8; margin-bottom: 4px; }
 
   .glance-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
   .glance-stat { text-align: left; }
@@ -386,7 +392,7 @@ function renderReport(data) {
 
     <div class="card">
       <h2>Industry Trends &amp; AI Outlook <span class="source-tag real">Government data</span></h2>
-      ${trendsSection(data.industry_trends)}
+      ${trendsSection(data.industry_trends, data.revenue_projection)}
     </div>
 
     <div class="card">
@@ -512,7 +518,7 @@ function growthBadge(pct) {
   return `<span class="${cls}">${sign}${pct.toFixed(1)}%</span>`;
 }
 
-function trendsSection(trends) {
+function trendsSection(trends, projection) {
   const nat = trends.national;
   const sec = trends.sector;
   const hasSector = trends.sector_has_data;
@@ -521,15 +527,34 @@ function trendsSection(trends) {
     ? { pct: sec.employment_growth_2024_2034_pct, note: sec.growth_note, tag: "Sector-specific" }
     : { pct: nat.employment_growth_2024_2034_pct, note: nat.growth_note, tag: "National average (sector-specific figure not published)" };
 
+  const demandRow = hasSector && sec.output_growth_2024_2034_pct !== null
+    ? { pct: sec.output_growth_2024_2034_pct, note: sec.output_growth_note, tag: "Sector-specific" }
+    : { pct: nat.output_growth_2024_2034_pct, note: (hasSector && sec.output_growth_note) || nat.output_growth_note, tag: (hasSector && sec.output_growth_note) ? "Partial sector data — see note" : "National average (sector-specific figure not published)" };
+
   const aiRow = hasSector && sec.ai_current_use_pct !== null
     ? { current: sec.ai_current_use_pct, expected: sec.ai_expected_use_pct, note: sec.ai_note, tag: "Sector-specific" }
     : { current: nat.ai_current_use_pct, expected: nat.ai_expected_use_pct, note: nat.ai_note, tag: "National average (sector-specific figure not published)" };
+
+  const projectionHtml = (projection && projection.projected_revenue)
+    ? `
+      <div class="calc-box">
+        <span class="source-tag calculated" style="margin-left:0; margin-bottom:6px; display:inline-block;">Calculated projection</span>
+        <div class="calc-value">${money(projection.projected_revenue)} by ${projection.target_year}</div>
+        <div>Projected average revenue per firm, growing this industry's estimated ${money(projection.base_revenue)} (${projection.base_year}) forward at ${projection.annual_growth_rate_pct_used}%/year &mdash; the ${projection.growth_rate_basis} for real demand growth.</div>
+        <div style="margin-top:6px; color:#5b6b74;">This figure isn't published by Census or BLS &mdash; it's calculated by this tool by compounding the real Census-based revenue estimate above by the real BLS demand-growth rate over ${projection.years_projected} years. Treat it as a directional "if current demand trends hold" estimate, not a forecast guarantee.</div>
+      </div>
+    `
+    : "";
 
   return `
     <div class="glance-grid" style="margin-bottom: 16px;">
       <div class="glance-stat">
         <div class="value">${growthBadge(growthRow.pct)}</div>
         <div class="label">Projected employment growth, 2024&ndash;2034 &middot; ${growthRow.tag}</div>
+      </div>
+      <div class="glance-stat">
+        <div class="value">${growthBadge(demandRow.pct)}</div>
+        <div class="label">Projected demand growth (real output), 2024&ndash;2034 &middot; ${demandRow.tag}</div>
       </div>
       <div class="glance-stat">
         <div class="value">${aiRow.current !== null && aiRow.current !== undefined ? aiRow.current.toFixed(1) + "%" : "—"}</div>
@@ -541,11 +566,14 @@ function trendsSection(trends) {
       </div>
     </div>
     <p class="caption" style="margin-bottom: 6px;">${growthRow.note || ""}</p>
+    <p class="caption" style="margin-bottom: 6px;">${demandRow.note || ""}</p>
     <p class="caption" style="margin-bottom: 6px;">${aiRow.note || ""}</p>
-    <p class="caption" style="margin-bottom: 0;">
+    ${projectionHtml}
+    <p class="caption" style="margin-top: 12px; margin-bottom: 0;">
       ${trends.as_of}
       Sources:
       <a href="${trends.sources.employment_growth.url}" target="_blank" rel="noopener">${trends.sources.employment_growth.label}</a>;
+      <a href="${trends.sources.output_growth.url}" target="_blank" rel="noopener">${trends.sources.output_growth.label}</a>;
       <a href="${trends.sources.ai_adoption.url}" target="_blank" rel="noopener">${trends.sources.ai_adoption.label}</a>.
       Census also publishes AI adoption by state (all industries combined, not broken out by sector) on its
       <a href="https://www.census.gov/hfp/btos/data" target="_blank" rel="noopener">BTOS data dashboard</a>.
