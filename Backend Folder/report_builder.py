@@ -152,6 +152,15 @@ def build_report(naics_code: str, state_abbr: str, api_key: str = None) -> dict:
         naics_code, econ_state.get("naics_label"), profile["label"]
     )
 
+    trends_data = industry_trends.get_trend(naics_code)
+    revenue_projection_data = industry_trends.project_revenue(
+        latest_average_revenue, latest_year, naics_code
+    )
+    five_year_outlook = narratives.build_five_year_outlook(
+        profile["label"], econ_state.get("naics_label"), STATE_NAMES.get(state_abbr.upper(), state_abbr),
+        income_statement, trends_data, revenue_projection_data,
+    )
+
     return {
         "generated_at": datetime.utcnow().isoformat() + "Z",
         "methodology_note": (
@@ -169,6 +178,7 @@ def build_report(naics_code: str, state_abbr: str, api_key: str = None) -> dict:
             "sector_profile_used": profile["label"],
         },
         "industry_description": industry_description,
+        "five_year_outlook": five_year_outlook,
         "geography": {
             "state": state_abbr.upper(),
             "state_name": STATE_NAMES.get(state_abbr.upper(), state_abbr),
@@ -204,8 +214,6 @@ def build_report(naics_code: str, state_abbr: str, api_key: str = None) -> dict:
         "metric_trends": metric_trends,
         "national_income_statement_latest": national_income_statement,
         "implied_annual_growth_pct": round(implied_annual_growth * 100, 2),
-        "industry_trends": industry_trends.get_trend(naics_code),
-        "revenue_projection": industry_trends.project_revenue(
-            latest_average_revenue, latest_year, naics_code
-        ),
+        "industry_trends": trends_data,
+        "revenue_projection": revenue_projection_data,
     }

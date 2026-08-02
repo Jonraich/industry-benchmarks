@@ -353,6 +353,12 @@ def build_pdf(data: dict) -> bytes:
                             bg_color=CARD_TINT, border_color=LINE))
         story.append(Spacer(1, 10))
 
+    if data.get("five_year_outlook"):
+        story.append(Paragraph("5-Year Outlook & AI Opportunity", styles["H3"]))
+        story.append(_card(Paragraph(data["five_year_outlook"], styles["Body"]),
+                            bg_color=ACCENT_TINT, border_color=ACCENT))
+        story.append(Spacer(1, 10))
+
     # ---- At a Glance --------------------------------------------------
     _section_heading(story, styles, "At a Glance")
     story.append(Paragraph("Average per firm", styles["H3"]))
@@ -362,9 +368,9 @@ def build_pdf(data: dict) -> bytes:
         ["National average revenue / firm", money_compact(g.get("national_average_revenue_per_firm"))],
     ]
     if is_ and is_.get("sde") is not None:
-        avg_rows.append([f"Est. average SDE / firm, {geo['state_name']}", money_compact(is_["sde"])])
+        avg_rows.append([f"Est. average SDE / firm, {geo['state_name']}<super>1</super>", money_compact(is_["sde"])])
     if ns and ns.get("sde") is not None:
-        avg_rows.append(["National average SDE / firm", money_compact(ns["sde"])])
+        avg_rows.append(["National average SDE / firm<super>1</super>", money_compact(ns["sde"])])
     story.append(_kv_table(avg_rows))
 
     story.append(Paragraph("Industry totals", styles["H3"]))
@@ -373,14 +379,20 @@ def build_pdf(data: dict) -> bytes:
         ["Total industry revenue", money_compact(g["total_revenue"])],
         ["Total employment", num(g["total_employment"])],
         ["Total annual payroll", money_compact(g["total_payroll"])],
-        ["Total SDE, all firms", money_compact(g["total_sde"])],
-        ["Total net income, all firms", money_compact(g["total_net_income"])],
+        ["Total SDE, all firms<super>1</super>", money_compact(g["total_sde"])],
+        ["Total net income, all firms<super>1</super>", money_compact(g["total_net_income"])],
     ]
     story.append(_kv_table(totals_rows))
+    story.append(Paragraph(
+        "<super>1</super> Modeled — not directly reported by the Census Bureau. This marker appears "
+        "throughout the report wherever a figure or table is estimated from this tool's "
+        "industry-typical financial assumptions rather than measured data.",
+        styles["Caption"],
+    ))
 
     dist = g.get("firm_distribution") or {}
     if dist:
-        story.append(Paragraph("Firms Distribution by Sales Class", styles["H3"]))
+        story.append(Paragraph("Firms Distribution by Sales Class<super>1</super>", styles["H3"]))
         rows = [[label, num(v["count"]), f"{v['pct']:.1f}%"] for label, v in dist.items()]
         rows.append(["Total", num(g["total_firms"]), "100.0%"])
         story.append(_grid_table(["Sales Class", "Firms", "% of Total"], rows, bold_rows={len(rows) - 1},
@@ -445,7 +457,7 @@ def build_pdf(data: dict) -> bytes:
     # ---- Revenue & SDE 5-Year trend (table instead of chart) ----------
     is_history = data.get("income_statement_history") or {}
     if is_history:
-        story.append(Paragraph("Revenue & SDE Trend, 5-Year", styles["H3"]))
+        story.append(Paragraph("Revenue & SDE Trend, 5-Year<super>1</super>", styles["H3"]))
         years = sorted(is_history.keys())
         rev_row = ["Revenue"] + [money(is_history[y]["revenue"]) for y in years]
         sde_row = ["SDE"] + [money(is_history[y]["sde"]) for y in years]
@@ -460,7 +472,7 @@ def build_pdf(data: dict) -> bytes:
     # ---- State vs. National Benchmarks ---------------------------------
     metric_trends = data.get("metric_trends") or {}
     if metric_trends:
-        story.append(Paragraph("State vs. National Benchmarks, 5-Year", styles["H3"]))
+        story.append(Paragraph("State vs. National Benchmarks, 5-Year<super>1</super>", styles["H3"]))
         order = ["revenue", "sde", "ebitda", "gross_profit", "pretax_net_profit"]
         for key in order:
             mt = metric_trends.get(key)
@@ -479,7 +491,7 @@ def build_pdf(data: dict) -> bytes:
                 story.append(Paragraph(mt["vs_national_note"], styles["Caption"]))
 
     # ---- Income Statement (latest year) --------------------------------
-    _section_heading(story, styles, "Income Statement")
+    _section_heading(story, styles, "Income Statement<super>1</super>")
     story.append(Paragraph(f"% of average revenue, latest year ({sources['cbp_year']})", styles["Caption"]))
     rev = is_["revenue"]
     is_rows = [
@@ -508,7 +520,7 @@ def build_pdf(data: dict) -> bytes:
 
     # ---- Balance Sheet (latest year) ------------------------------------
     story.append(Spacer(1, 6))
-    _section_heading(story, styles, "Balance Sheet")
+    _section_heading(story, styles, "Balance Sheet<super>1</super>")
     story.append(Paragraph("% of total assets, latest year", styles["Caption"]))
     ta = bs["total_assets"]
     bs_rows = [
@@ -536,7 +548,7 @@ def build_pdf(data: dict) -> bytes:
     # ---- Income Statement, 5-Year --------------------------------------
     if is_history:
         story.append(Spacer(1, 6))
-        _section_heading(story, styles, "Income Statement, 5-Year")
+        _section_heading(story, styles, "Income Statement, 5-Year<super>1</super>")
         years = sorted(is_history.keys())
         rows_def = [
             ("Business Revenue", lambda y: is_history[y]["revenue"], True),
@@ -563,7 +575,7 @@ def build_pdf(data: dict) -> bytes:
     bs_history = data.get("balance_sheet_history") or {}
     if bs_history:
         story.append(Spacer(1, 6))
-        _section_heading(story, styles, "Balance Sheet, 5-Year")
+        _section_heading(story, styles, "Balance Sheet, 5-Year<super>1</super>")
         years = sorted(bs_history.keys())
         rows_def = [
             ("Total Assets", lambda y: bs_history[y]["total_assets"], True),
@@ -589,7 +601,7 @@ def build_pdf(data: dict) -> bytes:
 
     # ---- Financial Ratios (merged latest-year + NWC trend) --------------
     story.append(Spacer(1, 6))
-    _section_heading(story, styles, "Financial Ratios")
+    _section_heading(story, styles, "Financial Ratios<super>1</super>")
     story.append(Paragraph(
         f"Latest year ({sources['cbp_year']}). This tool applies one fixed sector-typical cost and "
         f"balance-sheet structure across all 5 modeled years, so margin, liquidity, and turnover "
@@ -639,7 +651,7 @@ def build_pdf(data: dict) -> bytes:
     size_classes = data.get("size_class_estimates") or {}
     if size_classes:
         story.append(Spacer(1, 6))
-        _section_heading(story, styles, "By Revenue Size Class")
+        _section_heading(story, styles, "By Revenue Size Class<super>1</super>")
         story.append(Paragraph("Estimated SDE and EBITDA by size class, scaled from the sector profile.", styles["Caption"]))
         labels = list(size_classes.keys())
         metric_rows = [
@@ -654,7 +666,7 @@ def build_pdf(data: dict) -> bytes:
     size_history = data.get("size_class_history") or {}
     if size_history:
         story.append(Spacer(1, 6))
-        _section_heading(story, styles, "By Revenue Size Class, 5-Year")
+        _section_heading(story, styles, "By Revenue Size Class, 5-Year<super>1</super>")
         class_labels = list(size_history.keys())
         years = sorted(size_history[class_labels[0]].keys())
         story.append(Paragraph(
@@ -681,7 +693,7 @@ def build_pdf(data: dict) -> bytes:
     cap_intensity = data.get("capital_intensity_by_size") or {}
     if cap_intensity:
         story.append(Spacer(1, 6))
-        _section_heading(story, styles, "Capital Intensity Analysis")
+        _section_heading(story, styles, "Capital Intensity Analysis<super>1</super>")
         story.append(Paragraph(
             "Capital intensity measures how many dollars of assets it takes to generate a dollar "
             "of revenue (Total Assets ÷ Revenue) — a rough gauge of how “asset-heavy” "
