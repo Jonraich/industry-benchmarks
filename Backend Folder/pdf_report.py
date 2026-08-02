@@ -362,9 +362,9 @@ def build_pdf(data: dict) -> bytes:
         ["National average revenue / firm", money_compact(g.get("national_average_revenue_per_firm"))],
     ]
     if is_ and is_.get("sde") is not None:
-        avg_rows.append([f"Est. average SDE / firm, {geo['state_name']} (modeled)", money_compact(is_["sde"])])
+        avg_rows.append([f"Est. average SDE / firm, {geo['state_name']}", money_compact(is_["sde"])])
     if ns and ns.get("sde") is not None:
-        avg_rows.append(["National average SDE / firm (modeled)", money_compact(ns["sde"])])
+        avg_rows.append(["National average SDE / firm", money_compact(ns["sde"])])
     story.append(_kv_table(avg_rows))
 
     story.append(Paragraph("Industry totals", styles["H3"]))
@@ -373,14 +373,14 @@ def build_pdf(data: dict) -> bytes:
         ["Total industry revenue", money_compact(g["total_revenue"])],
         ["Total employment", num(g["total_employment"])],
         ["Total annual payroll", money_compact(g["total_payroll"])],
-        ["Total SDE, all firms (modeled)", money_compact(g["total_sde"])],
-        ["Total net income, all firms (modeled)", money_compact(g["total_net_income"])],
+        ["Total SDE, all firms", money_compact(g["total_sde"])],
+        ["Total net income, all firms", money_compact(g["total_net_income"])],
     ]
     story.append(_kv_table(totals_rows))
 
     dist = g.get("firm_distribution") or {}
     if dist:
-        story.append(Paragraph("Firms Distribution by Sales Class (modeled)", styles["H3"]))
+        story.append(Paragraph("Firms Distribution by Sales Class", styles["H3"]))
         rows = [[label, num(v["count"]), f"{v['pct']:.1f}%"] for label, v in dist.items()]
         rows.append(["Total", num(g["total_firms"]), "100.0%"])
         story.append(_grid_table(["Sales Class", "Firms", "% of Total"], rows, bold_rows={len(rows) - 1},
@@ -445,7 +445,7 @@ def build_pdf(data: dict) -> bytes:
     # ---- Revenue & SDE 5-Year trend (table instead of chart) ----------
     is_history = data.get("income_statement_history") or {}
     if is_history:
-        story.append(Paragraph("Revenue & SDE Trend, 5-Year (modeled)", styles["H3"]))
+        story.append(Paragraph("Revenue & SDE Trend, 5-Year", styles["H3"]))
         years = sorted(is_history.keys())
         rev_row = ["Revenue"] + [money(is_history[y]["revenue"]) for y in years]
         sde_row = ["SDE"] + [money(is_history[y]["sde"]) for y in years]
@@ -460,7 +460,7 @@ def build_pdf(data: dict) -> bytes:
     # ---- State vs. National Benchmarks ---------------------------------
     metric_trends = data.get("metric_trends") or {}
     if metric_trends:
-        story.append(Paragraph("State vs. National Benchmarks, 5-Year (modeled)", styles["H3"]))
+        story.append(Paragraph("State vs. National Benchmarks, 5-Year", styles["H3"]))
         order = ["revenue", "sde", "ebitda", "gross_profit", "pretax_net_profit"]
         for key in order:
             mt = metric_trends.get(key)
@@ -479,7 +479,7 @@ def build_pdf(data: dict) -> bytes:
                 story.append(Paragraph(mt["vs_national_note"], styles["Caption"]))
 
     # ---- Income Statement (latest year) --------------------------------
-    _section_heading(story, styles, "Income Statement (modeled)")
+    _section_heading(story, styles, "Income Statement")
     story.append(Paragraph(f"% of average revenue, latest year ({sources['cbp_year']})", styles["Caption"]))
     rev = is_["revenue"]
     is_rows = [
@@ -508,7 +508,7 @@ def build_pdf(data: dict) -> bytes:
 
     # ---- Balance Sheet (latest year) ------------------------------------
     story.append(Spacer(1, 6))
-    _section_heading(story, styles, "Balance Sheet (modeled)")
+    _section_heading(story, styles, "Balance Sheet")
     story.append(Paragraph("% of total assets, latest year", styles["Caption"]))
     ta = bs["total_assets"]
     bs_rows = [
@@ -536,7 +536,7 @@ def build_pdf(data: dict) -> bytes:
     # ---- Income Statement, 5-Year --------------------------------------
     if is_history:
         story.append(Spacer(1, 6))
-        _section_heading(story, styles, "Income Statement, 5-Year (modeled)")
+        _section_heading(story, styles, "Income Statement, 5-Year")
         years = sorted(is_history.keys())
         rows_def = [
             ("Business Revenue", lambda y: is_history[y]["revenue"], True),
@@ -563,7 +563,7 @@ def build_pdf(data: dict) -> bytes:
     bs_history = data.get("balance_sheet_history") or {}
     if bs_history:
         story.append(Spacer(1, 6))
-        _section_heading(story, styles, "Balance Sheet, 5-Year (modeled)")
+        _section_heading(story, styles, "Balance Sheet, 5-Year")
         years = sorted(bs_history.keys())
         rows_def = [
             ("Total Assets", lambda y: bs_history[y]["total_assets"], True),
@@ -589,7 +589,7 @@ def build_pdf(data: dict) -> bytes:
 
     # ---- Financial Ratios (merged latest-year + NWC trend) --------------
     story.append(Spacer(1, 6))
-    _section_heading(story, styles, "Financial Ratios (modeled)")
+    _section_heading(story, styles, "Financial Ratios")
     story.append(Paragraph(
         f"Latest year ({sources['cbp_year']}). This tool applies one fixed sector-typical cost and "
         f"balance-sheet structure across all 5 modeled years, so margin, liquidity, and turnover "
@@ -639,7 +639,7 @@ def build_pdf(data: dict) -> bytes:
     size_classes = data.get("size_class_estimates") or {}
     if size_classes:
         story.append(Spacer(1, 6))
-        _section_heading(story, styles, "By Revenue Size Class (modeled)")
+        _section_heading(story, styles, "By Revenue Size Class")
         story.append(Paragraph("Estimated SDE and EBITDA by size class, scaled from the sector profile.", styles["Caption"]))
         labels = list(size_classes.keys())
         metric_rows = [
@@ -654,7 +654,7 @@ def build_pdf(data: dict) -> bytes:
     size_history = data.get("size_class_history") or {}
     if size_history:
         story.append(Spacer(1, 6))
-        _section_heading(story, styles, "By Revenue Size Class, 5-Year (modeled)")
+        _section_heading(story, styles, "By Revenue Size Class, 5-Year")
         class_labels = list(size_history.keys())
         years = sorted(size_history[class_labels[0]].keys())
         story.append(Paragraph(
@@ -681,7 +681,7 @@ def build_pdf(data: dict) -> bytes:
     cap_intensity = data.get("capital_intensity_by_size") or {}
     if cap_intensity:
         story.append(Spacer(1, 6))
-        _section_heading(story, styles, "Capital Intensity Analysis (modeled)")
+        _section_heading(story, styles, "Capital Intensity Analysis")
         story.append(Paragraph(
             "Capital intensity measures how many dollars of assets it takes to generate a dollar "
             "of revenue (Total Assets ÷ Revenue) — a rough gauge of how “asset-heavy” "
@@ -697,6 +697,60 @@ def build_pdf(data: dict) -> bytes:
             "comparably grounded way to vary capital intensity by year, so it's shown as a current "
             "estimate by size class rather than a fabricated historical trend.", styles["Caption"],
         ))
+
+        story.append(Paragraph("Reading the ranges", styles["H3"]))
+        range_rows = [
+            ["Below 0.25", "Light on physical assets — typically service-driven businesses with room to scale without heavy capital spending."],
+            ["0.25 – 0.35", "A mix of service and physical operations — some equipment or inventory, but not asset-dominated."],
+            ["0.35 – 0.45", "Meaningful equipment or working-capital needs — more established, less nimble to scale quickly."],
+            ["Above 0.45", "Asset-heavy — significant infrastructure and higher barriers for a new entrant."],
+        ]
+        story.append(_grid_table(["Range", "General characteristics"], range_rows, first_col_width=1.3 * inch,
+                                  left_align_cols={0, 1}))
+
+        story.append(Paragraph("Why it matters, by audience", styles["H3"]))
+        audience_rows = [
+            ["Buyers", "A higher ratio usually means more capital tied up in the business before it starts generating a return."],
+            ["Investors", "Lower-intensity, asset-light models tend to scale more easily and often command different valuation multiples."],
+            ["Lenders", "Higher-intensity businesses typically carry more collateral, but asset quality and liquidity matter just as much as quantity."],
+            ["Advisors", "Capital intensity is one input among many — it should inform the valuation approach, not dictate it on its own."],
+        ]
+        story.append(_grid_table(["Audience", "Why it matters"], audience_rows, first_col_width=1.3 * inch,
+                                  left_align_cols={0, 1}))
+
+    # ---- Glossary -----------------------------------------------------------
+    # Plain-English definitions for the report's key financial/industry terms.
+    # Mirrors the hover-bubble definitions shown on the web report -- a PDF
+    # can't support hover, so this appears as a reference table instead of
+    # the old per-value "Modeled — footnote 1" marker system.
+    story.append(Spacer(1, 10))
+    _section_heading(story, styles, "Glossary")
+    story.append(Paragraph(
+        "Plain-English definitions for the financial and industry terms used throughout this report.",
+        styles["Caption"],
+    ))
+    glossary_rows = [
+        ("NAICS", "North American Industry Classification System — the standard code the U.S. Census Bureau and other federal agencies use to classify businesses by industry."),
+        ("SDE", "Seller's Discretionary Earnings — total cash flow available to a single owner-operator, including officer compensation, before taxes and financing costs. The standard cash-flow measure used to value small businesses."),
+        ("EBITDA", "Earnings Before Interest, Taxes, Depreciation, and Amortization — operating profit before financing costs and non-cash accounting charges."),
+        ("Gross Profit / Margin", "Revenue minus the direct cost of goods or services sold; margin expresses this as a percentage of revenue."),
+        ("Officers Compensation", "Compensation paid to the business owner(s)/officers. Counted as an expense here but added back into SDE, since it represents owner pay rather than a market-rate employee cost."),
+        ("Operating Income", "Gross profit minus all operating expenses (excluding interest and other non-operating items) — profit from core business operations."),
+        ("Pre-Tax Net Profit", "Operating income plus or minus interest and other non-operating income or expense, before income taxes."),
+        ("Net Working Capital", "Current assets minus current liabilities — the short-term cash cushion available to fund day-to-day operations."),
+        ("Current Ratio", "Current assets divided by current liabilities. Above 1.0 generally means short-term obligations are covered by short-term assets."),
+        ("Quick Ratio", "Like the current ratio, but excludes inventory (the least liquid current asset) — a stricter test of short-term liquidity."),
+        ("Days Payable", "Average number of days it takes the business to pay its suppliers, based on accounts payable and cost of sales."),
+        ("Pre-Tax Return on Assets", "Pre-tax profit divided by total assets — how efficiently the business turns its asset base into profit."),
+        ("Pre-Tax Return on Net Worth", "Pre-tax profit divided by equity (net worth) — the pre-tax return generated on the owners' invested capital."),
+        ("Capital Intensity", "Total assets divided by revenue — a rough measure of how many dollars of assets it takes to generate a dollar of sales. Higher means a more asset-heavy business model."),
+        ("Fixed Asset Turnover", "Revenue divided by net fixed assets — how efficiently the business generates sales from its property, plant, and equipment."),
+        ("Receivables Turnover", "Revenue divided by accounts receivable. A higher number means the business collects from customers faster."),
+        ("Total Asset Turnover", "Revenue divided by total assets — how efficiently the whole asset base is used to generate sales."),
+        ("Days Working Capital", "Net working capital expressed in days of revenue — roughly how many days of sales the working capital could cover."),
+    ]
+    story.append(_grid_table(["Term", "Definition"], glossary_rows, first_col_width=1.7 * inch,
+                              left_align_cols={0, 1}))
 
     # ---- Methodology & Disclosures -----------------------------------------
     story.append(Spacer(1, 10))
