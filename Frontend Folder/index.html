@@ -139,8 +139,18 @@
   .highlight-box .section-label { color: var(--accent-dark); margin: 0 0 12px; }
   .highlight-box .glance-stat .value { color: var(--accent-dark); }
 
-  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-  th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+  .table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    margin-bottom: 4px;
+  }
+  .table-scroll table { border: none; margin: 0; }
+  table { width: auto; min-width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th:first-child, td:first-child { white-space: normal; }
+  table.wrap-cells td, table.wrap-cells th { white-space: normal; }
   th:first-child, td:first-child { text-align: left; }
   thead th { color: var(--sub); font-weight: 600; font-size: 11.5px; text-transform: uppercase; }
   tr.total td { font-weight: 700; border-top: 2px solid var(--ink); }
@@ -1573,7 +1583,8 @@ function renderReport(data) {
       <p class="caption" style="margin-top:10px;">This tool applies one modeled capital-structure profile per sector. Unlike revenue and SDE — which are anchored to a real, measured employment/payroll growth rate — we don't have a comparably grounded way to vary capital intensity by year, so it's shown as a current estimate by size class rather than a fabricated historical trend.</p>
 
       <h3 style="font-size:13px; margin:20px 0 8px;">Reading the ranges</h3>
-      <table>
+      <div class="table-scroll">
+      <table class="wrap-cells">
         <thead><tr><th>Range</th><th>General characteristics</th></tr></thead>
         <tbody>
           <tr><td>Below 0.25</td><td>Light on physical assets — typically service-driven businesses with room to scale without heavy capital spending.</td></tr>
@@ -1582,6 +1593,7 @@ function renderReport(data) {
           <tr><td>Above 0.45</td><td>Asset-heavy — significant infrastructure and higher barriers for a new entrant.</td></tr>
         </tbody>
       </table>
+      </div>
 
       <h3 style="font-size:13px; margin:20px 0 8px;">Why it matters, by audience</h3>
       <div class="glance-grid">
@@ -1659,10 +1671,10 @@ function setupEmailUI(state, naics) {
 
 function firmDistributionTable(dist, totalFirms) {
   const labels = Object.keys(dist);
-  return `<table><thead><tr><th>Sales Class</th><th>Firms</th><th>% of Total</th></tr></thead><tbody>
+  return `<div class="table-scroll"><table><thead><tr><th>Sales Class</th><th>Firms</th><th>% of Total</th></tr></thead><tbody>
     ${labels.map(l => `<tr><td>${l}</td><td>${num(dist[l].count)}</td><td>${dist[l].pct.toFixed(1)}%</td></tr>`).join("")}
     <tr class="subtotal"><td>Total</td><td>${num(totalFirms)}</td><td>100.0%</td></tr>
-  </tbody></table>`;
+  </tbody></table></div>`;
 }
 
 function metricTrendsSection(metricTrends) {
@@ -1676,6 +1688,7 @@ function metricTrendsSection(metricTrends) {
     return `
       <div style="margin-bottom:${isLast ? "0" : "22px"}; padding-bottom:${isLast ? "0" : "18px"}; border-bottom:${isLast ? "none" : "1px solid var(--line)"};">
         <h3 style="font-size:14px; margin:0 0 8px;">${mt.label}</h3>
+        <div class="table-scroll">
         <table>
           <thead><tr><th>Year</th>${years.map(y => `<th>${y}</th>`).join("")}</tr></thead>
           <tbody>
@@ -1683,6 +1696,7 @@ function metricTrendsSection(metricTrends) {
             ${hasNational ? `<tr><td>United States</td>${years.map(y => `<td>${mt.national_history[y] !== undefined ? money(mt.national_history[y]) : "—"}</td>`).join("")}</tr>` : ""}
           </tbody>
         </table>
+        </div>
         <p class="caption" style="margin-top:8px; margin-bottom:2px;">${mt.state_trend ? mt.state_trend.sentence : ""}</p>
         <p class="caption" style="margin-bottom:0;">${mt.vs_national_note}</p>
       </div>
@@ -1708,7 +1722,7 @@ function incomeStatementHistoryTable(history) {
     [term("sde", "SDE (Cash Flow)"), y => history[y].sde, 1],
     [term("pretaxNetProfit", "Pre-Tax Net Profit"), y => history[y].pretax_net_profit, 1],
   ];
-  return `<table>
+  return `<div class="table-scroll"><table>
     <thead><tr><th>Line item</th>${years.map(y => `<th>${y}</th>`).join("")}</tr></thead>
     <tbody>
       <tr class="subtotal"><td>Business Revenue</td>${years.map(y => `<td>${money(rev(y))}</td>`).join("")}</tr>
@@ -1716,7 +1730,7 @@ function incomeStatementHistoryTable(history) {
         <tr class="${bold ? "subtotal" : ""}"><td>${label}</td>${years.map(y => `<td>${money(getter(y))}</td>`).join("")}</tr>
       `).join("")}
     </tbody>
-  </table>`;
+  </table></div>`;
 }
 
 function balanceSheetHistoryTable(history) {
@@ -1738,7 +1752,7 @@ function balanceSheetHistoryTable(history) {
     ["Total Liabilities", y => history[y].total_liabilities, 1],
     ["Equity", y => history[y].equity, 1],
   ];
-  return `<table>
+  return `<div class="table-scroll"><table>
     <thead><tr><th>Line item</th>${years.map(y => `<th>${y}</th>`).join("")}</tr></thead>
     <tbody>
       <tr class="subtotal"><td>Total Assets</td>${years.map(y => `<td>${money(ta(y))}</td>`).join("")}</tr>
@@ -1746,7 +1760,7 @@ function balanceSheetHistoryTable(history) {
         <tr class="${bold ? "subtotal" : ""}"><td>${label}</td>${years.map(y => `<td>${money(getter(y))}</td>`).join("")}</tr>
       `).join("")}
     </tbody>
-  </table>`;
+  </table></div>`;
 }
 
 function ratiosHistoryTable(historyRatios) {
@@ -1756,6 +1770,7 @@ function ratiosHistoryTable(historyRatios) {
   const firstYear = years[0], lastYear = years[years.length - 1];
   const section = (title, rows) => `
     <h4 style="font-size:12.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--sub); margin:16px 0 8px;">${title}</h4>
+    <div class="table-scroll">
     <table><tbody>
       ${rows.map(([label, getter, fmt]) => {
         const values = years.map(y => getter(y));
@@ -1772,6 +1787,7 @@ function ratiosHistoryTable(historyRatios) {
         return `<tr><td style="padding:8px 10px; border-bottom:1px solid var(--line);">${label}</td><td style="padding:8px 10px; border-bottom:1px solid var(--line); text-align:right; font-weight:700;">${valueHtml}</td></tr>`;
       }).join("")}
     </tbody></table>
+    </div>
   `;
   return `
     ${section("Cash Flow &amp; Solvency", [
@@ -1802,6 +1818,7 @@ function sizeClassMetricHistoryTable(sizeClassHistory, metricKey, metricLabel) {
   const firstYear = years[0], lastYear = years[years.length - 1];
   return `
     <h4 style="font-size:13px; margin:16px 0 6px;">${metricLabel}</h4>
+    <div class="table-scroll">
     <table><thead><tr><th>Sales Class</th>${years.map(y => `<th>${y}</th>`).join("")}<th>${firstYear}&ndash;${lastYear}</th></tr></thead><tbody>
       ${classLabels.map(cls => {
         const first = sizeClassHistory[cls][firstYear][metricKey];
@@ -1812,6 +1829,7 @@ function sizeClassMetricHistoryTable(sizeClassHistory, metricKey, metricLabel) {
         return `<tr><td>${cls}</td>${years.map(y => `<td>${money(sizeClassHistory[cls][y][metricKey])}</td>`).join("")}<td class="${chgClass}" style="font-weight:600;">${chgLabel}</td></tr>`;
       }).join("")}
     </tbody></table>
+    </div>
   `;
 }
 
@@ -1828,9 +1846,9 @@ function sizeClassHistorySection(sizeClassHistory) {
 
 function capitalIntensityTable(byClass) {
   const labels = Object.keys(byClass);
-  return `<table><thead><tr>${labels.map(l => `<th>${l}</th>`).join("")}</tr></thead><tbody>
+  return `<div class="table-scroll"><table><thead><tr>${labels.map(l => `<th>${l}</th>`).join("")}</tr></thead><tbody>
     <tr>${labels.map(l => `<td>${byClass[l].toFixed(2)}</td>`).join("")}</tr>
-  </tbody></table>`;
+  </tbody></table></div>`;
 }
 
 function incomeStatementTable(is) {
@@ -1854,11 +1872,11 @@ function incomeStatementTable(is) {
     [term("sde", "SDE (Cash Flow)"), is.sde, 1],
     [term("pretaxNetProfit", "Pre-Tax Net Profit"), is.pretax_net_profit, 1],
   ];
-  return `<table><thead><tr><th>Line Item</th><th>Amount</th><th>% of Revenue</th></tr></thead><tbody>
+  return `<div class="table-scroll"><table><thead><tr><th>Line Item</th><th>Amount</th><th>% of Revenue</th></tr></thead><tbody>
     ${rows.map(([label, val, bold]) => `
       <tr class="${bold ? "subtotal" : ""}"><td>${label}</td><td>${money(val)}</td><td>${pctOfRevenue(val, rev)}</td></tr>
     `).join("")}
-  </tbody></table>`;
+  </tbody></table></div>`;
 }
 
 function balanceSheetTable(bs) {
@@ -1880,11 +1898,11 @@ function balanceSheetTable(bs) {
     ["Total Liabilities", bs.total_liabilities, 1],
     ["Equity", bs.equity, 1],
   ];
-  return `<table><thead><tr><th>Line Item</th><th>Amount</th><th>% of Assets</th></tr></thead><tbody>
+  return `<div class="table-scroll"><table><thead><tr><th>Line Item</th><th>Amount</th><th>% of Assets</th></tr></thead><tbody>
     ${rows.map(([label, val, bold]) => `
       <tr class="${bold ? "subtotal" : ""}"><td>${label}</td><td>${money(val)}</td><td>${pctOfAssets(val, ta)}</td></tr>
     `).join("")}
-  </tbody></table>`;
+  </tbody></table></div>`;
 }
 
 function growthBadge(pct) {
@@ -1959,12 +1977,12 @@ function trendsSection(trends, projection) {
 
 function sizeClassTable(sizeClasses) {
   const labels = Object.keys(sizeClasses);
-  return `<table><thead><tr><th>Metric</th>${labels.map(l => `<th>${l}</th>`).join("")}</tr></thead><tbody>
+  return `<div class="table-scroll"><table><thead><tr><th>Metric</th>${labels.map(l => `<th>${l}</th>`).join("")}</tr></thead><tbody>
     <tr><td>Revenue</td>${labels.map(l => `<td>${money(sizeClasses[l].revenue)}</td>`).join("")}</tr>
     <tr><td>${term("grossProfit", "Gross Profit")}</td>${labels.map(l => `<td>${money(sizeClasses[l].gross_profit)}</td>`).join("")}</tr>
     <tr><td>${term("ebitda", "EBITDA")}</td>${labels.map(l => `<td>${money(sizeClasses[l].ebitda)}</td>`).join("")}</tr>
     <tr><td>${term("sde", "SDE")}</td>${labels.map(l => `<td>${money(sizeClasses[l].sde)}</td>`).join("")}</tr>
-  </tbody></table>`;
+  </tbody></table></div>`;
 }
 
 let trendChartInstance = null;
