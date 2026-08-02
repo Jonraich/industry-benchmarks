@@ -92,6 +92,15 @@
   .metric-grid .glance-stat .value { font-size: 19px; line-height: 1.25; word-break: break-word; cursor: default; }
   .metric-grid .glance-stat .label { margin-top: 5px; line-height: 1.4; }
   .highlight-box .metric-grid .glance-stat { background: #ffffff; border-color: rgba(15,122,99,0.25); }
+  .footnote-mark {
+    font-size: 11px; font-weight: 700; color: var(--accent-dark); vertical-align: super;
+    margin-left: 2px; cursor: default;
+  }
+  .outlook-note {
+    border-left: 3px solid var(--accent); background: var(--accent-bg);
+    padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13.5px;
+    line-height: 1.6; color: var(--ink); margin: 0 0 20px;
+  }
   .term-tip {
     border-bottom: 1px dotted var(--sub); cursor: help; position: relative;
   }
@@ -1469,13 +1478,16 @@ function renderReport(data) {
       <p class="caption">${data.geography.state_name} · ${term("naics", "NAICS")} ${data.industry.naics_code} · Modeled with the "${data.industry.sector_profile_used}" sector profile</p>
       <p style="font-size:13.5px; line-height:1.55; color:var(--ink); margin:0 0 18px;">${data.industry_description}</p>
 
+      <h3 style="font-size:13px; margin:0 0 8px;">5-Year Outlook &amp; AI Opportunity</h3>
+      <p class="outlook-note">${data.five_year_outlook}</p>
+
       <div class="highlight-box">
         <div class="section-label">Average per firm</div>
         <div class="glance-grid metric-grid cols-2">
           <div class="glance-stat"><div class="value" title="${money(g.average_revenue_per_firm)}">${moneyCompact(g.average_revenue_per_firm)}</div><div class="label">Est. average revenue / firm, ${data.geography.state_name} (${data.data_sources.cbp_year})</div></div>
           <div class="glance-stat"><div class="value" title="${g.national_average_revenue_per_firm ? money(g.national_average_revenue_per_firm) : ""}">${g.national_average_revenue_per_firm ? moneyCompact(g.national_average_revenue_per_firm) : "—"}</div><div class="label">National average revenue / firm</div></div>
-          <div class="glance-stat"><div class="value" title="${is && is.sde !== undefined ? money(is.sde) : ""}">${is && is.sde !== undefined ? moneyCompact(is.sde) : "—"}</div><div class="label">Est. average ${term("sde", "SDE")} / firm, ${data.geography.state_name}</div></div>
-          <div class="glance-stat"><div class="value" title="${ns && ns.sde !== undefined ? money(ns.sde) : ""}">${ns && ns.sde !== undefined ? moneyCompact(ns.sde) : "—"}</div><div class="label">National average ${term("sde", "SDE")} / firm</div></div>
+          <div class="glance-stat"><div class="value" title="${is && is.sde !== undefined ? money(is.sde) : ""}">${is && is.sde !== undefined ? moneyCompact(is.sde) : "—"}</div><div class="label">Est. average ${term("sde", "SDE")} / firm, ${data.geography.state_name}<sup class="footnote-mark" title="Modeled — see note below">1</sup></div></div>
+          <div class="glance-stat"><div class="value" title="${ns && ns.sde !== undefined ? money(ns.sde) : ""}">${ns && ns.sde !== undefined ? moneyCompact(ns.sde) : "—"}</div><div class="label">National average ${term("sde", "SDE")} / firm<sup class="footnote-mark" title="Modeled — see note below">1</sup></div></div>
         </div>
       </div>
 
@@ -1485,11 +1497,12 @@ function renderReport(data) {
         <div class="glance-stat"><div class="value" title="${money(g.total_revenue)}">${moneyCompact(g.total_revenue)}</div><div class="label">Total industry revenue</div></div>
         <div class="glance-stat"><div class="value" title="${num(g.total_employment)}">${numCompact(g.total_employment)}</div><div class="label">Total employment</div></div>
         <div class="glance-stat"><div class="value" title="${money(g.total_payroll)}">${moneyCompact(g.total_payroll)}</div><div class="label">Total annual payroll</div></div>
-        <div class="glance-stat"><div class="value" title="${money(g.total_sde)}">${moneyCompact(g.total_sde)}</div><div class="label">Total ${term("sde", "SDE")}, all firms</div></div>
-        <div class="glance-stat"><div class="value" title="${money(g.total_net_income)}">${moneyCompact(g.total_net_income)}</div><div class="label">Total net income, all firms</div></div>
+        <div class="glance-stat"><div class="value" title="${money(g.total_sde)}">${moneyCompact(g.total_sde)}</div><div class="label">Total ${term("sde", "SDE")}, all firms<sup class="footnote-mark" title="Modeled — see note below">1</sup></div></div>
+        <div class="glance-stat"><div class="value" title="${money(g.total_net_income)}">${moneyCompact(g.total_net_income)}</div><div class="label">Total net income, all firms<sup class="footnote-mark" title="Modeled — see note below">1</sup></div></div>
       </div>
+      <p class="caption" style="margin-top:10px; margin-bottom:0;"><sup class="footnote-mark">1</sup> Modeled — not directly reported by the Census Bureau. This marker appears throughout the report wherever a figure or table is estimated from this tool's industry-typical financial assumptions rather than measured data.</p>
 
-      <h3 style="font-size:13px; margin:20px 0 8px;">Firms Distribution by Sales Class</h3>
+      <h3 style="font-size:13px; margin:20px 0 8px;">Firms Distribution by Sales Class<sup class="footnote-mark" title="Modeled — see note below">1</sup></h3>
       <p class="caption">Census doesn't publish firm counts by revenue size class at this level of detail, so this splits the real total-firm count using a general small-business size distribution rather than an industry-specific one.</p>
       ${firmDistributionTable(g.firm_distribution, g.total_firms)}
     </div>
@@ -1500,25 +1513,25 @@ function renderReport(data) {
     </div>
 
     <div class="card">
-      <h2>Revenue &amp; ${term("sde", "SDE")} Trend</h2>
+      <h2>Revenue &amp; ${term("sde", "SDE")} Trend<sup class="footnote-mark" title="Modeled — see note below">1</sup></h2>
       <p class="caption">5-year series modeled from the latest average-revenue estimate using observed employment growth. Not measured year-by-year data.</p>
       <canvas id="trendChart"></canvas>
     </div>
 
     <div class="card">
-      <h2>State vs. National Benchmarks</h2>
+      <h2>State vs. National Benchmarks<sup class="footnote-mark" title="Modeled — see note below">1</sup></h2>
       <p class="caption">5-year modeled trend for Revenue, ${term("sde", "SDE")}, ${term("ebitda", "EBITDA")}, Gross Profit, and Pre-Tax Net Profit, per firm. The national line is built the same way as the state line, from real national Census revenue and employment data.</p>
       ${metricTrendsSection(data.metric_trends)}
     </div>
 
     <div class="grid-2">
       <div class="card">
-        <h2>Income Statement</h2>
+        <h2>Income Statement<sup class="footnote-mark" title="Modeled — see note below">1</sup></h2>
         <p class="caption">% of average revenue, latest year (${data.data_sources.cbp_year})</p>
         ${incomeStatementTable(is)}
       </div>
       <div class="card">
-        <h2>Balance Sheet</h2>
+        <h2>Balance Sheet<sup class="footnote-mark" title="Modeled — see note below">1</sup></h2>
         <p class="caption">% of total assets, latest year</p>
         ${balanceSheetTable(bs)}
       </div>
@@ -1526,35 +1539,35 @@ function renderReport(data) {
 
     <div class="grid-2">
       <div class="card">
-        <h2>Income Statement, 5-Year</h2>
+        <h2>Income Statement, 5-Year<sup class="footnote-mark" title="Modeled — see note below">1</sup></h2>
         ${incomeStatementHistoryTable(data.income_statement_history)}
       </div>
       <div class="card">
-        <h2>Balance Sheet, 5-Year</h2>
+        <h2>Balance Sheet, 5-Year<sup class="footnote-mark" title="Modeled — see note below">1</sup></h2>
         ${balanceSheetHistoryTable(data.balance_sheet_history)}
       </div>
     </div>
 
     <div class="card">
-      <h2>Financial Ratios</h2>
+      <h2>Financial Ratios<sup class="footnote-mark" title="Modeled — see note below">1</sup></h2>
       <p class="caption">Latest year (${data.data_sources.cbp_year}). This tool applies one fixed sector-typical cost and balance-sheet structure across all 5 modeled years, so margin, liquidity, and turnover ratios stay constant by construction &mdash; only Net Working Capital (a dollar-scale figure) genuinely moves as revenue grows, shown below with its change since ${Object.keys(data.ratios_history).sort()[0]}.</p>
       ${ratiosHistoryTable(data.ratios_history)}
     </div>
 
     <div class="card">
-      <h2>By Revenue Size Class</h2>
+      <h2>By Revenue Size Class<sup class="footnote-mark" title="Modeled — see note below">1</sup></h2>
       <p class="caption">Estimated ${term("sde", "SDE")} and ${term("ebitda", "EBITDA")} by size class, scaled from the sector profile.</p>
       ${sizeClassTable(data.size_class_estimates)}
     </div>
 
     <div class="card">
-      <h2>By Revenue Size Class, 5-Year</h2>
+      <h2>By Revenue Size Class, 5-Year<sup class="footnote-mark" title="Modeled — see note below">1</sup></h2>
       <p class="caption">Same modeled growth trend applied within each size class, using this industry's observed employment growth rate (${data.implied_annual_growth_pct}%/year) &mdash; the rightmost column shows the total change over the 5-year window.</p>
       ${sizeClassHistorySection(data.size_class_history)}
     </div>
 
     <div class="card">
-      <h2>Capital Intensity Analysis</h2>
+      <h2>Capital Intensity Analysis<sup class="footnote-mark" title="Modeled — see note below">1</sup></h2>
       <p class="caption">Capital intensity measures how many dollars of assets it takes to generate a dollar of revenue (Total Assets ÷ Revenue) — a rough gauge of how "asset-heavy" a business model is. A ratio of 0.30 means $0.30 of assets are needed to generate $1.00 of revenue.</p>
       ${capitalIntensityTable(data.capital_intensity_by_size)}
       <p class="caption" style="margin-top:10px;">This tool applies one modeled capital-structure profile per sector. Unlike revenue and SDE — which are anchored to a real, measured employment/payroll growth rate — we don't have a comparably grounded way to vary capital intensity by year, so it's shown as a current estimate by size class rather than a fabricated historical trend.</p>
